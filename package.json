@@ -12,6 +12,7 @@
     "build:dir": "electron-builder --win --dir"
   },
   "dependencies": {
+    "electron-updater": "^6.8.3",
     "firebase": "^12.13.0",
     "sqlite3": "^6.0.1",
     "xlsx": "^0.18.5"

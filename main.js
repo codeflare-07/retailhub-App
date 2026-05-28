@@ -6,6 +6,8 @@ const {
     shell
 } = require("electron");
 
+const { autoUpdater } = require("electron-updater");
+
 app.setName("RetailHub");
 const fs = require("fs");
 const path = require("path");
@@ -889,6 +891,26 @@ app.whenReady().then(async () => {
     }
 
     createWindow();
+
+    autoUpdater.checkForUpdatesAndNotify();
+
+autoUpdater.on("update-available", () => {
+  dialog.showMessageBox({
+    type: "info",
+    title: "Update Available",
+    message: "New update downloading..."
+  });
+});
+
+autoUpdater.on("update-downloaded", () => {
+  dialog.showMessageBox({
+    type: "info",
+    title: "Update Ready",
+    message: "App will restart to install update."
+  }).then(() => {
+    autoUpdater.quitAndInstall();
+  });
+});
 
 });
 
