@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in with Google</title>
+    <link rel="icon" type="image/png" href="assets/app.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: #ffffff;
+            color: #202124;
+            margin: 0;
+            padding: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .auth-card {
+            width: 100%;
+            max-width: 450px;
+            border: 1px solid #dadce0;
+            border-radius: 8px;
+            padding: 40px 36px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        .google-logo {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 2px;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 24px;
+            user-select: none;
+        }
+
+        .google-logo span:nth-child(1) { color: #4285F4; }
+        .google-logo span:nth-child(2) { color: #EA4335; }
+        .google-logo span:nth-child(3) { color: #FBBC05; }
+        .google-logo span:nth-child(4) { color: #34A853; }
+
+        h1 {
+            font-size: 22px;
+            font-weight: 500;
+            margin: 0 0 8px;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: #5f6368;
+            margin: 0 0 32px;
+        }
+
+        .form-field {
+            text-align: left;
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            color: #1a73e8;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        input {
+            width: 100%;
+            height: 48px;
+            padding: 0 16px;
+            border: 1.5px solid #dadce0;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 15px;
+            color: #202124;
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            border-color: #1a73e8;
+        }
+
+        .scopes-box {
+            background: #f8f9fa;
+            border: 1px dashed #dadce0;
+            border-radius: 6px;
+            padding: 16px;
+            text-align: left;
+            margin-bottom: 32px;
+        }
+
+        .scopes-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #3c4043;
+            margin-bottom: 8px;
+        }
+
+        .scope-item {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+            font-size: 13px;
+            color: #5f6368;
+            line-height: 1.4;
+        }
+
+        .scope-item::before {
+            content: "✓";
+            color: #34a853;
+            font-weight: 700;
+        }
+
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        button {
+            height: 36px;
+            padding: 0 24px;
+            border: none;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-cancel {
+            background: transparent;
+            color: #1a73e8;
+        }
+
+        .btn-cancel:hover {
+            background: #f4f8ff;
+        }
+
+        .btn-confirm {
+            background: #1a73e8;
+            color: #ffffff;
+        }
+
+        .btn-confirm:hover {
+            background: #1557b0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="auth-card">
+    <div class="google-logo">
+        <span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span>
+    </div>
+
+    <h1>Sign in with Google</h1>
+    <div class="subtitle">to continue to Retail Hub Backups</div>
+
+    <form id="authForm">
+        <div class="form-field">
+            <label for="email">Google Account Email</label>
+            <input type="email" id="email" value="retailhub.user@gmail.com" required placeholder="name@gmail.com">
+        </div>
+
+        <div class="scopes-box">
+            <div class="scopes-title">Retail Hub requests access to:</div>
+            <div class="scope-item">
+                See, edit, create, and delete only the specific Google Drive files you use with this app.
+            </div>
+        </div>
+
+        <div class="actions">
+            <button type="button" class="btn-cancel" id="btnCancel">Cancel</button>
+            <button type="submit" class="btn-confirm">Allow & Sync</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    const { ipcRenderer } = require("electron");
+
+    const form = document.getElementById("authForm");
+    const cancelBtn = document.getElementById("btnCancel");
+
+    form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const email = document.getElementById("email").value.trim();
+        if (email) {
+            ipcRenderer.send("google-auth-success", email);
+        }
+    });
+
+    cancelBtn.addEventListener("click", () => {
+        ipcRenderer.send("google-auth-cancel");
+    });
+</script>
+
+</body>
+</html>

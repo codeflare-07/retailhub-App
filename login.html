@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Sign in — RetailHub</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body class="login-page">
+
+
+
+<div class="login-wrap">
+
+    <header class="login-hero">
+
+        <div class="login-hero__logo login-hero__logo--img">
+
+            <img src="build/icon.png" alt="RetailHub" width="72" height="72">
+
+        </div>
+
+        <h1 class="login-hero__title">RetailHub</h1>
+
+        <p class="login-hero__tagline">Inventory · Billing · Expenses · Reports</p>
+
+    </header>
+
+
+
+    <section class="login-card">
+
+        <h2 class="login-card__heading">Sign in</h2>
+
+        <p class="login-card__sub">Enter your account login details</p>
+
+
+
+        <form id="loginForm" class="login-form" autocomplete="on">
+
+            <div class="form-field">
+
+                <label class="field-label" for="loginUsername">Login ID</label>
+
+                <input type="text" id="loginUsername" class="app-input" required autocomplete="username">
+
+            </div>
+
+            <div class="form-field">
+
+                <label class="field-label" for="loginPassword">Password</label>
+
+                <input type="password" id="loginPassword" class="app-input" required autocomplete="current-password">
+
+            </div>
+
+            <p id="loginError" class="login-error" hidden></p>
+
+            <button type="submit" class="btn btn--primary btn--block" id="loginSubmitBtn">Sign in</button>
+
+        </form>
+
+    </section>
+
+</div>
+
+
+
+<script>
+
+(function () {
+
+
+
+    const form =
+
+        document.getElementById("loginForm");
+
+
+
+    const errorEl =
+
+        document.getElementById("loginError");
+
+
+
+    const submitBtn =
+
+        document.getElementById("loginSubmitBtn");
+
+
+
+    form.addEventListener("submit", async (e) => {
+
+
+
+        e.preventDefault();
+
+
+
+        errorEl.hidden = true;
+
+        submitBtn.disabled = true;
+
+        submitBtn.textContent = "Signing in…";
+
+
+
+        try {
+
+
+
+            if (!window.electronAPI) {
+
+                throw new Error("App API not available. Restart the application.");
+
+            }
+
+
+
+            const result =
+
+                await window.electronAPI.login({
+
+                    username:
+
+                        document.getElementById("loginUsername").value.trim(),
+
+                    password:
+
+                        document.getElementById("loginPassword").value
+
+                });
+
+
+
+            if (!result.success) {
+
+
+
+                errorEl.textContent =
+
+                    result.error || "Sign in failed";
+
+
+
+                errorEl.hidden = false;
+
+                return;
+
+
+
+            }
+
+
+
+            const userJson =
+
+                JSON.stringify(result.user);
+
+
+
+            localStorage.setItem("amUser", userJson);
+
+            sessionStorage.setItem("amUser", userJson);
+
+
+
+            await window.electronAPI.navigate("index.html");
+
+
+
+        } catch (err) {
+
+
+
+            errorEl.textContent =
+
+                err.message || "Could not sign in";
+
+
+
+            errorEl.hidden = false;
+
+
+
+        } finally {
+
+
+
+            submitBtn.disabled = false;
+
+            submitBtn.textContent = "Sign in";
+
+
+
+        }
+
+
+
+    });
+
+
+
+    document.getElementById("loginUsername").focus();
+
+
+
+})();
+
+</script>
+
+</body>
+
+</html>
+

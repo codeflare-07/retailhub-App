@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RetailHub</title>
+    <link rel="icon" type="image/png" href="assets/app.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<aside class="sidebar">
+
+    <!-- Premium Sidebar Branding -->
+    <div class="sidebar-brand">
+        <img src="assets/app.png" alt="RetailHub Logo" class="sidebar-brand__logo">
+        <span class="sidebar-brand__title">RetailHub</span>
+    </div>
+
+    <!-- Store profile banner card -->
+    <div class="sidebar-shop">
+        <div class="sidebar-shop__banner" id="profileBannerWrap">
+            <img id="profileBannerImg" alt="Shop banner">
+            <div class="sidebar-shop__banner-overlay"></div>
+        </div>
+        
+        <div class="sidebar-shop__content">
+            <div class="sidebar-shop__logo" id="profileLogoWrap">
+                <img id="profileLogoImg" class="sidebar-shop__logo-img" alt="Shop logo">
+                <span id="profileLogoPlaceholder" class="sidebar-shop__logo-fallback">RH</span>
+            </div>
+            
+            <h2 id="sidebarShopName">My Shop</h2>
+            <div id="sidebarOwnerLine">Owner: Owner</div>
+            
+            <div class="sidebar-shop__details">
+                <div class="sidebar-shop__detail-item">
+                    <span class="sidebar-shop__detail-icon">📞</span>
+                    <span id="sidebarMobileLine">-</span>
+                </div>
+                <div class="sidebar-shop__detail-item">
+                    <span class="sidebar-shop__detail-icon">📧</span>
+                    <span id="sidebarEmailLine">-</span>
+                </div>
+                <div class="sidebar-shop__detail-item">
+                    <span class="sidebar-shop__detail-icon">🧾</span>
+                    <span id="sidebarGstLine">-</span>
+                </div>
+                <div class="sidebar-shop__detail-item">
+                    <span class="sidebar-shop__detail-icon">📍</span>
+                    <span id="sidebarAddressLine">-</span>
+                </div>
+            </div>
+            
+            <div class="sidebar-shop__footer">
+                <div class="sidebar-shop__footer-row">
+                    <span>Created:</span>
+                    <span id="sidebarCreatedLine">-</span>
+                </div>
+                <div class="sidebar-shop__footer-row">
+                    <span>Backup:</span>
+                    <span id="sidebarBackupLine">Safe</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <nav class="sidebar-nav">
+        <button type="button" id="dashboardBtn" class="nav-btn">
+            <span class="nav-btn__icon">🏠</span>
+            <span class="nav-btn__label">Dashboard</span>
+            <kbd class="nav-kbd">F1</kbd>
+        </button>
+        <button type="button" id="sellBtn" class="nav-btn nav-btn--accent">
+            <span class="nav-btn__icon">🧾</span>
+            <span class="nav-btn__label">New Bill</span>
+            <kbd class="nav-kbd">F2</kbd>
+        </button>
+        <button type="button" id="addBtn" class="nav-btn">
+            <span class="nav-btn__icon">➕</span>
+            <span class="nav-btn__label">Add Product</span>
+            <kbd class="nav-kbd">F3</kbd>
+        </button>
+        <button type="button" id="stockBtn" class="nav-btn">
+            <span class="nav-btn__icon">⇅</span>
+            <span class="nav-btn__label">Stock In / Out</span>
+            <kbd class="nav-kbd">F4</kbd>
+        </button>
+        <button type="button" id="expensesBtn" class="nav-btn">
+            <span class="nav-btn__icon">💸</span>
+            <span class="nav-btn__label">Expenses</span>
+            <kbd class="nav-kbd">F5</kbd>
+        </button>
+        <button type="button" id="reportsBtn" class="nav-btn">
+            <span class="nav-btn__icon">📊</span>
+            <span class="nav-btn__label">Reports</span>
+            <kbd class="nav-kbd">F6</kbd>
+        </button>
+    </nav>
+
+    <button type="button" id="settingsBtn" class="nav-btn nav-btn--settings" aria-label="Settings">
+        <span class="nav-btn__icon">⚙️</span>
+        <span class="nav-btn__label">Settings</span>
+        <kbd class="nav-kbd">F7</kbd>
+    </button>
+
+</aside>
+
+<main class="main">
+
+    <header class="page-header">
+        <div class="page-header__left">
+            <img src="assets/app.png" alt="RetailHub Logo" class="page-header__logo">
+            <div>
+                <p class="page-header__eyebrow">Overview</p>
+                <h1 class="page-header__title">Dashboard</h1>
+            </div>
+        </div>
+        <div class="page-header__right">
+            <button type="button" id="headerThemeToggle" class="theme-toggle-btn" aria-label="Toggle Theme">☀️</button>
+            <p class="page-header__user" id="headerUserName"></p>
+            <p class="page-header__date" id="dashboardDate"></p>
+        </div>
+    </header>
+
+    <div class="cards">
+
+        <div class="card card--products">
+            <div class="card__icon">◫</div>
+            <div class="card__body">
+                <h3>Total Products</h3>
+                <p class="card__value" id="totalProducts">0</p>
+            </div>
+        </div>
+
+        <div class="card card--stock">
+            <div class="card__icon">◎</div>
+            <div class="card__body">
+                <h3>Total Stock</h3>
+                <p class="card__value" id="totalStock">0</p>
+            </div>
+        </div>
+
+        <div class="card card--sales">
+            <div class="card__icon">₹</div>
+            <div class="card__body">
+                <h3>Today's Sales</h3>
+                <p class="card__value" id="todaySales">₹0</p>
+            </div>
+        </div>
+
+        <div class="card card--profit">
+            <div class="card__icon">↑</div>
+            <div class="card__body">
+                <h3>Today's Profit</h3>
+                <p class="card__value" id="totalProfit">₹0</p>
+            </div>
+        </div>
+
+    </div>
+
+    <section class="charts-section">
+        <div class="chart-card">
+            <div class="chart-card__head">
+                <h3>Sales trend</h3>
+                <span class="chart-card__sub">Last 7 days</span>
+            </div>
+            <div class="chart-card__canvas">
+                <canvas id="salesTrendChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-card__head">
+                <h3>Payment mix</h3>
+                <span class="chart-card__sub">Last 30 days</span>
+            </div>
+            <div class="chart-card__canvas chart-card__canvas--donut">
+                <canvas id="paymentChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card chart-card--list">
+            <div class="chart-card__head">
+                <h3>Top sellers</h3>
+                <span class="chart-card__sub">Last 30 days</span>
+            </div>
+            <ol class="charts-top" id="topProductsList"></ol>
+        </div>
+    </section>
+
+    <section class="panel table-box">
+        <div class="panel__head">
+            <h2>Inventory</h2>
+            <input type="text" id="searchProduct" class="search-input app-input" aria-label="Search products">
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Stock</th>
+                        <th>Status</th>
+                        <th>Buy Price</th>
+                        <th>Sell Price</th>
+                        <th class="th-actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryBody"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="panel table-box">
+        <div class="panel__head">
+            <h2>Sales History</h2>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Qty</th>
+                        <th>Total Sale</th>
+                        <th>Profit</th>
+                        <th>Bill</th>
+                        <th>Payment</th>
+                    </tr>
+                </thead>
+                <tbody id="salesBody"></tbody>
+            </table>
+        </div>
+    </section>
+
+</main>
+
+<!-- Add Product Modal -->
+<div id="productModal" class="modal">
+    <div class="modal-content form-modal form-modal--product">
+        <div class="modal-header">
+            <div>
+                <p class="form-modal__eyebrow">Inventory · F7</p>
+                <h2>Add Product</h2>
+            </div>
+            <button type="button" id="closeAddModal" class="modal-close" aria-label="Close">✕</button>
+        </div>
+
+        <div class="form-modal__body">
+            <section class="form-section">
+                <h3 class="form-section__title">Product details</h3>
+                <div class="form-field">
+                    <label class="field-label" for="name">Product name</label>
+                    <input type="text" class="app-input" id="name">
+                </div>
+                <div class="form-field">
+                    <label class="field-label" for="category">Category</label>
+                    <input type="text" class="app-input" id="category">
+                </div>
+            </section>
+
+            <section class="form-section">
+                <h3 class="form-section__title">Pricing & opening stock</h3>
+                <div class="form-grid-3">
+                    <div class="form-field">
+                        <label class="field-label" for="buyPrice">Buy price (₹)</label>
+                        <input type="text" class="app-input input-num" id="buyPrice" inputmode="decimal">
+                    </div>
+                    <div class="form-field">
+                        <label class="field-label" for="sellPrice">Sell price (₹)</label>
+                        <input type="text" class="app-input input-num" id="sellPrice" inputmode="decimal">
+                    </div>
+                    <div class="form-field">
+                        <label class="field-label" for="stock">Stock qty</label>
+                        <input type="text" class="app-input input-num" id="stock" inputmode="numeric">
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="form-modal__footer">
+            <button type="button" id="cancelAddBtn" class="btn btn--ghost">Cancel</button>
+            <button type="button" id="saveProduct" class="btn btn--primary">Save product</button>
+        </div>
+    </div>
+</div>
+
+<!-- Stock Modal -->
+<div id="stockModal" class="modal">
+    <div class="modal-content form-modal form-modal--stock">
+        <div class="modal-header">
+            <div>
+                <p class="form-modal__eyebrow">Inventory</p>
+                <h2>Stock In / Stock Out</h2>
+            </div>
+            <button type="button" id="closeStockModal" class="modal-close" aria-label="Close">✕</button>
+        </div>
+
+        <div class="form-modal__body">
+            <div class="stock-info-card" id="stockCurrentHint">
+                Select a product to see current stock
+            </div>
+
+            <div class="form-field">
+                <label class="field-label" for="stockProduct">Product</label>
+                <select id="stockProduct" class="app-input app-select"></select>
+            </div>
+
+            <div class="form-field">
+                <label class="field-label" for="newStock">Quantity change</label>
+                <input type="text" class="app-input input-num" id="newStock" inputmode="decimal">
+                <p class="form-field__hint">Use + to add stock, − to remove</p>
+            </div>
+
+            <div class="qty-quick-btns" id="stockQuickBtns">
+                <button type="button" class="qty-quick-btn qty-quick-btn--in" data-qty="10">+10</button>
+                <button type="button" class="qty-quick-btn qty-quick-btn--in" data-qty="50">+50</button>
+                <button type="button" class="qty-quick-btn qty-quick-btn--out" data-qty="-10">−10</button>
+                <button type="button" class="qty-quick-btn qty-quick-btn--out" data-qty="-50">−50</button>
+            </div>
+        </div>
+
+        <div class="form-modal__footer">
+            <button type="button" id="cancelStockBtn" class="btn btn--ghost">Close</button>
+            <button type="button" id="updateStock" class="btn btn--primary">Apply change</button>
+        </div>
+    </div>
+</div>
+
+<!-- POS / Sell Bill Modal -->
+<div id="sellModal" class="modal">
+    <div class="modal-content pos-modal">
+        <div class="modal-header pos-modal__header">
+            <div>
+                <p class="pos-modal__eyebrow" id="posModalEyebrow">Point of Sale · F8</p>
+                <h2 id="posModalTitle">New Bill</h2>
+            </div>
+            <div class="pos-modal__header-actions">
+                <button type="button" id="printBillBtn" class="btn btn--secondary btn--sm" hidden>Print bill</button>
+                <button type="button" id="shareBillPdfBtn" class="btn btn--ghost btn--sm" hidden>Share PDF</button>
+                <button type="button" id="closeSellModal" class="modal-close" aria-label="Close">✕</button>
+            </div>
+        </div>
+
+        <div id="posBillDone" class="pos-bill-done" hidden>
+            <div class="pos-bill-done__badge">Bill saved</div>
+            <p class="pos-bill-done__id" id="posDoneBillId">#000000</p>
+            <p class="pos-bill-done__total">Total <strong id="posDoneTotal">₹0</strong></p>
+            <p class="pos-bill-done__meta" id="posDoneMeta"></p>
+            <div class="pos-bill-done__table-wrap">
+                <table class="data-table pos-cart-table">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Qty</th>
+                            <th>Rate</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody id="posDoneCartBody"></tbody>
+                </table>
+            </div>
+            <div class="pos-bill-done__actions">
+                <button type="button" id="printBillDoneBtn" class="btn btn--secondary">Print bill</button>
+                <button type="button" id="shareBillPdfDoneBtn" class="btn btn--secondary">Share PDF</button>
+                <button type="button" id="newBillAfterSaleBtn" class="btn btn--primary">New bill</button>
+                <button type="button" id="closeBillDoneBtn" class="btn btn--ghost">Close</button>
+            </div>
+        </div>
+
+        <div id="posBillActive">
+        <div class="pos-layout">
+            <section class="pos-panel pos-panel--entry">
+                <h3 class="pos-panel__title">Add item</h3>
+                <label class="field-label">Product</label>
+                <select id="sellProduct" class="app-input app-select"></select>
+                <div class="form-row">
+                    <div>
+                        <label class="field-label">Quantity</label>
+                        <input type="text" class="app-input input-num" id="sellQty" inputmode="numeric" autocomplete="off">
+                    </div>
+                    <div>
+                        <label class="field-label">Unit price (₹)</label>
+                        <input type="text" class="app-input input-num" id="actualSellPrice" inputmode="decimal">
+                    </div>
+                </div>
+                <button type="button" id="addToBillBtn" class="btn btn--secondary btn--block">+ Add to bill</button>
+                <p class="pos-shortcut-hint">Press <kbd>Enter</kbd> to add · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to complete bill</p>
+            </section>
+
+            <section class="pos-panel pos-panel--cart">
+                <div class="pos-cart-head">
+                    <h3 class="pos-panel__title">Bill items</h3>
+                    <span class="pos-cart-count" id="billItemCount">0 items</span>
+                </div>
+                <div class="pos-cart-table-wrap">
+                    <table class="data-table pos-cart-table">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Qty</th>
+                                <th>Rate</th>
+                                <th>Amount</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="billCartBody">
+                            <tr id="billCartEmpty">
+                                <td colspan="5" class="pos-cart-empty">No items yet — add products to this bill</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pos-totals">
+                    <div class="pos-totals__row">
+                        <span>Subtotal</span>
+                        <strong id="billSubtotal">₹0</strong>
+                    </div>
+                    <div class="pos-totals__row pos-totals__row--grand">
+                        <span>Bill total</span>
+                        <strong id="billGrandTotal">₹0</strong>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="pos-checkout">
+            <div class="form-row pos-checkout__fields">
+                <div>
+                    <label class="field-label">Customer name</label>
+                    <input type="text" class="app-input" id="customerName">
+                </div>
+                <div>
+                    <label class="field-label">Customer mobile</label>
+                    <input type="text" class="app-input" id="customerMobile">
+                </div>
+                <div>
+                    <label class="field-label">Payment</label>
+                    <select id="paymentMode" class="app-input app-select">
+                        <option value="Cash">Cash</option>
+                        <option value="UPI">UPI</option>
+                        <option value="Credit">Credit</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-actions pos-checkout__actions">
+                <button type="button" id="clearBillBtn" class="btn btn--ghost">Clear bill</button>
+                <button type="button" id="cancelSellBtn" class="btn btn--ghost">Cancel</button>
+                <button type="button" id="sellProductBtn" class="btn btn--primary">Complete bill</button>
+            </div>
+        </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Product Modal -->
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Edit Product</h2>
+            <button type="button" id="closeEditModal" class="modal-close" aria-label="Close">✕</button>
+        </div>
+        <input type="hidden" id="editId">
+        <label class="field-label">Product Name</label>
+        <input type="text" class="app-input" id="editName">
+        <label class="field-label">Category</label>
+        <input type="text" class="app-input" id="editCategory">
+        <label class="field-label">Buy Price</label>
+        <input type="text" class="app-input input-num" id="editBuyPrice" inputmode="decimal">
+        <label class="field-label">Sell Price</label>
+        <input type="text" class="app-input input-num" id="editSellPrice" inputmode="decimal">
+        <button type="button" id="saveEditBtn" class="btn btn--primary btn--block">Save Changes</button>
+    </div>
+</div>
+
+<!-- Reports Modal -->
+<div id="reportsModal" class="modal">
+    <div class="modal-content modal-content--xl" style="max-height: 95vh; display: flex; flex-direction: column;">
+        <div class="modal-header" style="padding-bottom: 12px; border-bottom: 1px solid var(--border);">
+            <div>
+                <p class="form-modal__eyebrow">Analytics Center · F6</p>
+                <h2 style="margin: 0;">Reports & Analytics Dashboard</h2>
+            </div>
+            <button type="button" id="closeReportsModal" class="modal-close" aria-label="Close">✕</button>
+        </div>
+        
+        <!-- Controls Bar -->
+        <div class="reports-controls-bar" style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; padding: 16px 0; border-bottom: 1px solid var(--border);">
+            <div class="form-field" style="margin: 0;">
+                <label class="field-label" for="reportFrom">From Date</label>
+                <input type="date" class="app-input" id="reportFrom" style="width: 150px;">
+            </div>
+            <div class="form-field" style="margin: 0;">
+                <label class="field-label" for="reportTo">To Date</label>
+                <input type="date" class="app-input" id="reportTo" style="width: 150px;">
+            </div>
+            <div class="form-field" style="margin: 0; flex: 1; min-width: 200px;">
+                <label class="field-label" for="reportSearch">Search Reports</label>
+                <input type="text" class="app-input search-input" id="reportSearch" placeholder="Search products, payment mode, bills..." style="width: 100%;">
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" id="runDateReportBtn" class="btn btn--secondary" style="padding: 10px 16px;">Filter</button>
+                <button type="button" id="exportExcelBtn" class="btn btn--primary" style="padding: 10px 16px;">Export Excel</button>
+                <button type="button" id="exportPdfBtn" class="btn btn--secondary" style="padding: 10px 16px; background: #ea580c; color: #fff;">Export PDF</button>
+                <button type="button" id="printReportBtn" class="btn btn--secondary" style="padding: 10px 16px; background: #0284c7; color: #fff;">Print</button>
+            </div>
+        </div>
+        
+        <!-- Main Scrollable Reports Dashboard Container -->
+        <div class="reports-dashboard-body" style="flex: 1; overflow-y: auto; padding: 16px 0; display: flex; flex-direction: column; gap: 24px;">
+            
+            <!-- 1. Summary Cards Grid -->
+            <div class="reports-summary-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+                <!-- Sales Card -->
+                <div class="analytics-card" style="padding: 16px; border-radius: var(--radius-md); background: var(--bg-app); border: 1px solid var(--border);">
+                    <div style="font-size: var(--text-xs); text-transform: uppercase; font-weight: 800; color: var(--accent); margin-bottom: 8px;">Sales Summary</div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);"><span>Today:</span><strong id="repSalesToday">₹0</strong></div>
+                        <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);"><span>This Week:</span><strong id="repSalesWeek">₹0</strong></div>
+                        <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);"><span>This Month:</span><strong id="repSalesMonth">₹0</strong></div>
+                        <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);"><span>This Year:</span><strong id="repSalesYear">₹0</strong></div>
+                    </div>
+                </div>
+                <!-- Profit Card -->
+                <div class="analytics-card" style="padding: 16px; border-radius: var(--radius-md); background: var(--bg-app); border: 1px solid var(--border);">
+                    <div style="font-size: var(--text-xs); text-transform: uppercase; font-weight: 800; color: var(--success); margin-bottom: 8px;">Profit Summary</div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);"><span>Today:</span><strong id="repProfitToday">₹0</strong></div>
+                        <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);"><span>This Week:</span><strong id="repProfitWeek">₹0</strong></div>
+                        <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);"><span>This Month:</span><strong id="repProfitMonth">₹0</strong></div>
+                        <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);"><span>This Year:</span><strong id="repProfitYear">₹0</strong></div>
+                    </div>
+                </div>
+                <!-- Expense Card -->
+                <div class="analytics-card" style="padding: 16px; border-radius: var(--radius-md); background: var(--bg-app); border: 1px solid var(--border);">
+                    <div style="font-size: var(--text-xs); text-transform: uppercase; font-weight: 800; color: #ea580c; margin-bottom: 8px;">Expense Summary</div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);"><span>Today:</span><strong id="repExpenseToday">₹0</strong></div>
+                        <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);"><span>This Week:</span><strong id="repExpenseWeek">₹0</strong></div>
+                        <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);"><span>This Month:</span><strong id="repExpenseMonth">₹0</strong></div>
+                        <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);"><span>This Year:</span><strong id="repExpenseYear">₹0</strong></div>
+                    </div>
+                </div>
+                <!-- Inventory Card -->
+                <div class="analytics-card" style="padding: 16px; border-radius: var(--radius-md); background: var(--bg-app); border: 1px solid var(--border);">
+                    <div style="font-size: var(--text-xs); text-transform: uppercase; font-weight: 800; color: #0284c7; margin-bottom: 8px;">Inventory Valuation</div>
+                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                        <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);"><span>Total Products:</span><strong id="repInvCount">0</strong></div>
+                        <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);"><span>Total Stock:</span><strong id="repInvStock">0</strong></div>
+                        <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);"><span>Inventory Cost:</span><strong id="repInvValue">₹0</strong></div>
+                        <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);"><span>Potential Retail:</span><strong id="repInvSales">₹0</strong></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 2. Charts Section -->
+            <div class="reports-charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+                <!-- Daily Sales & Profit Trend -->
+                <div style="padding: 16px; border-radius: var(--radius-md); background: var(--bg-app); border: 1px solid var(--border); height: 280px; display: flex; flex-direction: column;">
+                    <h3 style="margin: 0 0 10px; font-size: var(--text-sm); font-weight: 800; text-transform: uppercase; color: var(--text-secondary);">Daily Sales & Profit</h3>
+                    <div style="flex: 1; min-height: 0; position: relative;">
+                        <canvas id="repDailyChart"></canvas>
+                    </div>
+                </div>
+                <!-- Monthly Sales -->
+                <div style="padding: 16px; border-radius: var(--radius-md); background: var(--bg-app); border: 1px solid var(--border); height: 280px; display: flex; flex-direction: column;">
+                    <h3 style="margin: 0 0 10px; font-size: var(--text-sm); font-weight: 800; text-transform: uppercase; color: var(--text-secondary);">Monthly Sales Trend</h3>
+                    <div style="flex: 1; min-height: 0; position: relative;">
+                        <canvas id="repMonthlyChart"></canvas>
+                    </div>
+                </div>
+                <!-- Profit Trend -->
+                <div style="padding: 16px; border-radius: var(--radius-md); background: var(--bg-app); border: 1px solid var(--border); height: 280px; display: flex; flex-direction: column;">
+                    <h3 style="margin: 0 0 10px; font-size: var(--text-sm); font-weight: 800; text-transform: uppercase; color: var(--text-secondary);">Profit Growth Trend</h3>
+                    <div style="flex: 1; min-height: 0; position: relative;">
+                        <canvas id="repProfitChart"></canvas>
+                    </div>
+                </div>
+                <!-- Expense Trend -->
+                <div style="padding: 16px; border-radius: var(--radius-md); background: var(--bg-app); border: 1px solid var(--border); height: 280px; display: flex; flex-direction: column;">
+                    <h3 style="margin: 0 0 10px; font-size: var(--text-sm); font-weight: 800; text-transform: uppercase; color: var(--text-secondary);">Expense Outflow Trend</h3>
+                    <div style="flex: 1; min-height: 0; position: relative;">
+                        <canvas id="repExpenseChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 3. Lists and Payment Breakdown Row -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                <!-- Payment Breakdown -->
+                <div style="padding: 16px; border-radius: var(--radius-md); background: var(--bg-app); border: 1px solid var(--border); display: flex; flex-direction: column;">
+                    <h3 style="margin: 0 0 12px; font-size: var(--text-sm); font-weight: 800; text-transform: uppercase; color: var(--text-secondary);">Payment Breakdown</h3>
+                    <div style="display: flex; flex-direction: column; gap: 14px; flex: 1; justify-content: center;">
+                        <div>
+                            <div style="display: flex; justify-content: space-between; font-size: var(--text-sm); font-weight: 700; margin-bottom: 4px;"><span>UPI / Online</span><span id="payUpiVal">₹0</span></div>
+                            <div style="height: 8px; border-radius: 4px; background: var(--border-light); overflow: hidden;">
+                                <div id="payUpiBar" style="height: 100%; width: 0%; background: var(--accent); transition: width 0.4s ease;"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div style="display: flex; justify-content: space-between; font-size: var(--text-sm); font-weight: 700; margin-bottom: 4px;"><span>Cash</span><span id="payCashVal">₹0</span></div>
+                            <div style="height: 8px; border-radius: 4px; background: var(--border-light); overflow: hidden;">
+                                <div id="payCashBar" style="height: 100%; width: 0%; background: var(--success); transition: width 0.4s ease;"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div style="display: flex; justify-content: space-between; font-size: var(--text-sm); font-weight: 700; margin-bottom: 4px;"><span>Credit</span><span id="payCreditVal">₹0</span></div>
+                            <div style="height: 8px; border-radius: 4px; background: var(--border-light); overflow: hidden;">
+                                <div id="payCreditBar" style="height: 100%; width: 0%; background: var(--danger); transition: width 0.4s ease;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Best Sellers -->
+                <div style="padding: 16px; border-radius: var(--radius-md); background: var(--bg-app); border: 1px solid var(--border);">
+                    <h3 style="margin: 0 0 12px; font-size: var(--text-sm); font-weight: 800; text-transform: uppercase; color: var(--text-secondary);">Best Sellers</h3>
+                    <ul id="repBestSellers" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;">
+                        <li style="color: var(--text-muted); font-size: var(--text-sm); text-align: center; padding: 12px 0;">No sales recorded</li>
+                    </ul>
+                </div>
+                
+                <!-- Lowest Sellers -->
+                <div style="padding: 16px; border-radius: var(--radius-md); background: var(--bg-app); border: 1px solid var(--border);">
+                    <h3 style="margin: 0 0 12px; font-size: var(--text-sm); font-weight: 800; text-transform: uppercase; color: var(--text-secondary);">Lowest Sellers</h3>
+                    <ul id="repLowestSellers" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;">
+                        <li style="color: var(--text-muted); font-size: var(--text-sm); text-align: center; padding: 12px 0;">No stock sold</li>
+                    </ul>
+                </div>
+                
+                <!-- Top Profit Items -->
+                <div style="padding: 16px; border-radius: var(--radius-md); background: var(--bg-app); border: 1px solid var(--border);">
+                    <h3 style="margin: 0 0 12px; font-size: var(--text-sm); font-weight: 800; text-transform: uppercase; color: var(--text-secondary);">Top Profit Items</h3>
+                    <ul id="repTopProfit" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;">
+                        <li style="color: var(--text-muted); font-size: var(--text-sm); text-align: center; padding: 12px 0;">No profit generated</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- 4. Detailed Sales / Search Reports Table -->
+            <div style="padding: 16px; border-radius: var(--radius-md); background: var(--bg-app); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 12px;">
+                <h3 style="margin: 0; font-size: var(--text-sm); font-weight: 800; text-transform: uppercase; color: var(--text-secondary);">Sales Log Report</h3>
+                <div id="reportContent" class="report-output" style="margin: 0; padding: 0; min-height: auto;">
+                    <div style="padding: 24px; text-align: center; color: var(--text-muted);">Please wait, loading reports...</div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<!-- Price History Modal -->
+<div id="priceHistoryModal" class="modal">
+    <div class="modal-content modal-content--xl">
+        <div class="modal-header">
+            <h2>Price History</h2>
+            <button type="button" id="closePriceHistoryModal" class="modal-close" aria-label="Close">✕</button>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Old Buy</th>
+                        <th>New Buy</th>
+                        <th>Old Sell</th>
+                        <th>New Sell</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody id="priceHistoryBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Bill History Modal -->
+<div id="billHistoryModal" class="modal">
+    <div class="modal-content modal-content--xl">
+        <div class="modal-header">
+            <h2>Bill History</h2>
+            <button type="button" id="closeBillHistoryModal" class="modal-close" aria-label="Close">✕</button>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Bill</th>
+                        <th>Date</th>
+                        <th>Customer</th>
+                        <th>Items</th>
+                        <th>Total</th>
+                        <th>Payment</th>
+                        <th class="th-actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="billHistoryBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Expense Tracker Modal -->
+<div id="expenseModal" class="modal">
+    <div class="modal-content modal-content--wide">
+        <div class="modal-header">
+            <div>
+                <p class="form-modal__eyebrow">Finance</p>
+                <h2>Expense Tracker</h2>
+            </div>
+            <button type="button" id="closeExpenseModal" class="modal-close" aria-label="Close">✕</button>
+        </div>
+        <div class="expense-modal__body">
+            <form id="expenseForm" class="expense-form">
+                <div class="form-grid-2">
+                    <div class="form-field">
+                        <label class="field-label" for="expenseCategory">Category</label>
+                        <select id="expenseCategory" class="app-select" required></select>
+                    </div>
+                    <div class="form-field">
+                        <label class="field-label" for="expenseAmount">Amount (₹)</label>
+                        <input type="text" id="expenseAmount" class="app-input input-num" inputmode="decimal" required>
+                    </div>
+                    <div class="form-field">
+                        <label class="field-label" for="expenseDate">Date</label>
+                        <input type="date" id="expenseDate" class="app-input" required>
+                    </div>
+                    <div class="form-field">
+                        <label class="field-label" for="expenseNote">Note</label>
+                        <input type="text" id="expenseNote" class="app-input" placeholder="Optional">
+                    </div>
+                </div>
+                <button type="submit" id="addExpenseBtn" class="btn btn--primary">Add expense</button>
+            </form>
+            <div class="expense-summary" id="expenseSummary"></div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Category</th>
+                            <th>Amount</th>
+                            <th>Note</th>
+                            <th class="th-actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenseListBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Sales History Modal -->
+<div id="salesHistoryModal" class="modal">
+    <div class="modal-content modal-content--xl">
+        <div class="modal-header">
+            <h2>Sales History</h2>
+            <button type="button" id="closeSalesHistoryModal" class="modal-close" aria-label="Close">✕</button>
+        </div>
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Qty</th>
+                        <th>Total Sale</th>
+                        <th>Profit</th>
+                        <th>Bill</th>
+                        <th>Payment</th>
+                        <th class="th-actions">Bill</th>
+                    </tr>
+                </thead>
+                <tbody id="salesHistoryBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Google Drive Backups List Modal -->
+<div id="driveBackupsModal" class="modal">
+    <div class="modal-content" style="max-width: 480px;">
+        <div class="modal-header">
+            <h2>Retail Hub Backups</h2>
+            <button type="button" id="closeDriveBackupsModal" class="modal-close" aria-label="Close">✕</button>
+        </div>
+        <p style="font-size: var(--text-sm); color: var(--text-secondary); margin: 0 0 12px; line-height: 1.45;">Select a cloud backup to restore your inventory and sales data.</p>
+        <div style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-app); margin-bottom: 16px;" id="driveBackupsList">
+            <div style="padding: 16px; text-align: center; color: var(--text-muted); font-size: var(--text-sm);">No backups found.</div>
+        </div>
+        <div class="modal-actions" style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button type="button" id="closeDriveBackupsBtn" class="btn btn--ghost">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Update Center Modal -->
+<div id="updateModal" class="modal">
+    <div class="modal-content" style="max-width: 440px;">
+        <div class="modal-header">
+            <h2>Update Center</h2>
+            <button type="button" id="closeUpdateModal" class="modal-close" aria-label="Close">✕</button>
+        </div>
+        
+        <p style="font-size: var(--text-sm); color: var(--text-secondary); margin: 0 0 12px; line-height: 1.45;">Manage application preferences, check the version manifest, and trigger secure auto-updates below.</p>
+        
+        <div class="update-card" style="padding: 16px; background: var(--bg-app); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);">
+                <span style="color: var(--text-secondary); font-weight: 600;">Current Version:</span>
+                <strong id="currentVersionText" style="color: var(--text-primary);">1.1.0</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);">
+                <span style="color: var(--text-secondary); font-weight: 600;">Latest Available:</span>
+                <strong id="latestVersionText" style="color: var(--text-primary);">1.1.0</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: var(--text-sm);">
+                <span style="color: var(--text-secondary); font-weight: 600;">Last Checked:</span>
+                <span id="lastCheckedText" style="font-weight: 700; color: var(--text-primary);">Never</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: var(--text-sm); align-items: center; margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--border-light);">
+                <span style="color: var(--text-secondary); font-weight: 600;">Status:</span>
+                <span id="updateStatusText" class="badge badge--ok" style="background: var(--success-soft); color: var(--success);">Up to date</span>
+            </div>
+        </div>
+        
+        <!-- Interactive simulation checkbox for demo/quality check -->
+        <div style="display: flex; align-items: center; gap: 8px; font-size: var(--text-xs); color: var(--text-muted); margin-bottom: 14px;">
+            <input type="checkbox" id="simulateUpdateCheckbox" style="cursor: pointer; width: 14px; height: 14px;">
+            <label for="simulateUpdateCheckbox" style="cursor: pointer; user-select: none; font-weight: 600;">Simulate update 1.2.0 available</label>
+        </div>
+
+        <div id="updateDownloadProgressWrap" style="display: none; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; font-size: var(--text-xs); margin-bottom: 6px; font-weight: 700; color: var(--text-secondary);">
+                <span id="progressStatusText">Downloading...</span>
+                <span id="progressPercentText">0%</span>
+            </div>
+            <div style="width: 100%; height: 8px; background: var(--border-light); border-radius: 99px; overflow: hidden;">
+                <div id="progressPercentBar" style="width: 0%; height: 100%; background: var(--accent); transition: width 0.1s linear;"></div>
+            </div>
+        </div>
+
+        <div class="modal-actions" style="display: flex; gap: 10px; justify-content: flex-end;">
+            <button type="button" id="cancelUpdateBtn" class="btn btn--ghost">Close</button>
+            <button type="button" id="checkUpdatesBtn" class="btn btn--primary">Check for Updates</button>
+            <button type="button" id="installUpdateBtn" class="btn btn--primary" style="display: none;">Download & Install</button>
+        </div>
+    </div>
+</div>
+
+<!-- Profile Modal -->
+<div id="profileModal" class="modal">
+    <div class="modal-content profile-modal" style="max-width: 640px;">
+        <div class="modal-header">
+            <h2>Shop Profile</h2>
+            <button type="button" id="closeProfileModal" class="modal-close" aria-label="Close">✕</button>
+        </div>
+        <div class="profile-form-layout" style="display: grid; grid-template-columns: 180px 1fr; gap: 24px;">
+            <div class="profile-form-logo" style="display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px;">
+                <div>
+                    <label class="field-label" style="display: block; margin-bottom: 6px;">Shop Logo</label>
+                    <div class="profile-upload-preview" style="width: 100px; height: 100px; border-radius: 16px; border: 2px dashed var(--border); display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--bg-surface);">
+                        <img id="profileUploadImg" alt="Logo preview" style="width:100%; height:100%; object-fit:cover;" hidden>
+                        <span id="profileUploadPlaceholder" style="font-weight:700; color:var(--text-muted);">Logo</span>
+                    </div>
+                </div>
+                <label class="profile-upload-btn" style="display: inline-block; padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--accent); background: var(--accent-soft); color: var(--accent); font-size: var(--text-xs); font-weight: 700; cursor: pointer; transition: all 0.2s;">
+                    Upload Logo
+                    <input type="file" id="logoInput" accept="image/png,image/jpeg,image/webp" hidden>
+                </label>
+                
+                <div style="margin-top: 8px;">
+                    <label class="field-label" style="display: block; margin-bottom: 6px;">Shop Banner</label>
+                    <div class="profile-banner-preview" style="width: 150px; height: 75px; border-radius: var(--radius-sm); border: 2px dashed var(--border); display: flex; align-items: center; justify-content: center; overflow: hidden; background: var(--bg-surface);">
+                        <img id="profileUploadBannerImg" alt="Banner preview" style="width:100%; height:100%; object-fit:cover;" hidden>
+                        <span id="profileUploadBannerPlaceholder" style="font-size: 10px; color: var(--text-muted);">No Banner</span>
+                    </div>
+                </div>
+                <label class="profile-upload-btn" style="display: inline-block; padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid #0284c7; background: rgba(2, 132, 199, 0.1); color: #0284c7; font-size: var(--text-xs); font-weight: 700; cursor: pointer; transition: all 0.2s;">
+                    Upload Banner
+                    <input type="file" id="bannerInput" accept="image/png,image/jpeg,image/webp" hidden>
+                </label>
+                
+                <button type="button" class="profile-remove-logo" id="removeLogoBtn" style="width: 100%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid var(--danger); background: var(--danger-soft); color: var(--danger); font-size: var(--text-xs); font-weight: 700; transition: all 0.2s;">Remove All</button>
+            </div>
+            
+            <div class="profile-form-fields" style="display: flex; flex-direction: column; gap: 10px;">
+                <div>
+                    <label class="field-label">Shop Name *</label>
+                    <input type="text" class="app-input" id="profileShopName" style="width: 100%;">
+                </div>
+                <div>
+                    <label class="field-label">Owner Name</label>
+                    <input type="text" class="app-input" id="profileOwnerName" style="width: 100%;">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label class="field-label">Mobile</label>
+                        <input type="tel" class="app-input" id="profileMobile" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label class="field-label">Shop Email</label>
+                        <input type="email" class="app-input" id="profileEmail" style="width: 100%;">
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label class="field-label">GST Number</label>
+                        <input type="text" class="app-input" id="profileGst" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label class="field-label">Store Creation Date</label>
+                        <input type="date" class="app-input" id="profileCreatedAt" style="width: 100%;">
+                    </div>
+                </div>
+                <div>
+                    <label class="field-label">Address</label>
+                    <textarea class="app-input" id="profileAddress" rows="2" style="width: 100%; resize: vertical;"></textarea>
+                </div>
+                <button type="button" id="saveProfileBtn" class="btn btn--primary btn--block" style="margin-top: 10px;">Save Profile</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Panel -->
+<div id="settingsPanel" class="settings-panel">
+    <button type="button" id="closeSettingsBtn" class="settings-close" aria-label="Close">✕</button>
+    <div class="settings-panel__inner">
+        <h2>Settings</h2>
+        <p class="settings-panel__sub">App preferences & data</p>
+
+        <button type="button" id="profileSettingsBtn" class="settings-menu-btn">
+            <span class="settings-menu-btn__icon settings-menu-btn__icon--shop" aria-hidden="true">◆</span>
+            <span class="settings-menu-btn__body">
+                <span class="settings-menu-btn__title">Shop Profile</span>
+                <span class="settings-menu-btn__sub">Name, logo, address, GST</span>
+            </span>
+            <span class="settings-menu-btn__chevron" aria-hidden="true">›</span>
+        </button>
+
+        <button type="button" id="updateCenterSettingsBtn" class="settings-menu-btn" style="margin-top: 8px;">
+            <span class="settings-menu-btn__icon settings-menu-btn__icon--update" style="background: var(--accent-soft); color: var(--accent);" aria-hidden="true">⇅</span>
+            <span class="settings-menu-btn__body">
+                <span class="settings-menu-btn__title">Update Center</span>
+                <span class="settings-menu-btn__sub">System version check & updates</span>
+            </span>
+            <span class="settings-menu-btn__chevron" aria-hidden="true">›</span>
+        </button>
+
+        <div class="settings-divider"></div>
+        <h3 style="margin: 0 0 10px; font-size: var(--text-md); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Google Drive Backup</h3>
+        <div class="cloud-status-widget" style="padding: 16px; background: var(--bg-app); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: 12px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <img id="googleAvatarImg" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-light);" src="" hidden>
+                <div id="googleAvatarPlaceholder" style="width: 40px; height: 40px; border-radius: 50%; background: var(--border-light); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: var(--text-muted);">G</div>
+                
+                <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="status-indicator status-indicator--red" id="cloudStatusIndicator" style="color: #ef4444; font-size: 12px;">●</span>
+                        <span id="cloudStatusText" style="font-weight: 800; font-size: var(--text-sm); color: var(--text-primary);">Disconnected</span>
+                    </div>
+                    <span id="cloudEmailText" style="font-size: var(--text-xs); color: var(--text-muted); font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">No account linked</span>
+                </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border-light); font-size: var(--text-xs); color: var(--text-secondary); font-weight: 600;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Last Sync:</span>
+                    <span id="cloudLastSyncText" style="color: var(--text-primary);">Never synced</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Backups:</span>
+                    <span id="cloudBackupCountText" style="color: var(--text-primary);">0 backups</span>
+                </div>
+            </div>
+        </div>
+        
+        <button type="button" id="googleSignInBtn" class="btn btn--primary btn--block" style="margin-bottom: 8px; display: flex; justify-content: center; align-items: center; gap: 8px;">
+            <span style="font-weight: 700;">G</span> Sign In with Google
+        </button>
+        <div id="googleConnectedActions" style="display: none; flex-direction: column; gap: 8px;">
+            <button type="button" id="cloudSyncNowBtn" class="btn btn--primary btn--block">Backup Now</button>
+            <button type="button" id="cloudRestoreBtn" class="btn btn--secondary btn--block">Restore from Drive</button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px;">
+                <button type="button" id="googleReconnectBtn" class="btn btn--ghost" style="padding: 8px; font-size: var(--text-xs); font-weight: 700;">Reconnect</button>
+                <button type="button" id="googleChangeAccountBtn" class="btn btn--ghost" style="padding: 8px; font-size: var(--text-xs); font-weight: 700;">Change Account</button>
+            </div>
+            <button type="button" id="googleSignOutBtn" class="btn btn--ghost btn--block" style="color: #ef4444; font-size: var(--text-xs); margin-top: 4px;">Disconnect Account</button>
+        </div>
+        
+        <div class="form-field" style="margin-top: 12px;">
+            <label class="field-label" for="autoBackupSelect">Auto Backup Interval</label>
+            <select id="autoBackupSelect" class="app-select" style="width: 100%;">
+                <option value="disabled">Disabled</option>
+                <option value="1h">Every 1 hour</option>
+                <option value="6h">Every 6 hours</option>
+                <option value="12h">Every 12 hours</option>
+                <option value="daily">Daily</option>
+            </select>
+        </div>
+        
+        <div class="settings-divider"></div>
+        <button type="button" id="backupBtn" class="btn btn--secondary btn--block">Backup Database</button>
+        <button type="button" id="restoreBtn" class="btn btn--ghost btn--block">Restore Database</button>
+        <p class="settings-data-path" id="settingsDataPath" hidden></p>
+    </div>
+</div>
+
+<div id="appDialog" class="app-dialog" hidden aria-hidden="true">
+    <div class="app-dialog__backdrop" data-dialog-close></div>
+    <div class="app-dialog__card" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle">
+        <div class="app-dialog__icon" id="appDialogIcon" aria-hidden="true"></div>
+        <h3 class="app-dialog__title" id="appDialogTitle"></h3>
+        <p class="app-dialog__message" id="appDialogMessage"></p>
+        <p class="app-dialog__detail" id="appDialogDetail" hidden></p>
+        <div class="app-dialog__actions">
+            <button type="button" id="appDialogCancel" class="btn btn--ghost" hidden>Cancel</button>
+            <button type="button" id="appDialogConfirm" class="btn btn--primary">OK</button>
+        </div>
+    </div>
+</div>
+
+<div id="appToast" class="app-toast" role="alert" aria-live="polite"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="features.js"></script>
+<script src="renderer.js"></script>
+</body>
+</html>
