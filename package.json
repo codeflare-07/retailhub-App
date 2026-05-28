@@ -1,6 +1,6 @@
 {
   "name": "retailhub",
-  "version": "1.1.2",
+  "version": "1.1.5",
   "description": "RetailHub — inventory, billing, expenses, and reports",
   "main": "main.js",
   "author": "RetailHub",
@@ -12,6 +12,7 @@
     "build:dir": "electron-builder --win --dir"
   },
   "dependencies": {
+    "electron-log": "^5.4.4",
     "electron-updater": "^6.8.3",
     "firebase": "^12.13.0",
     "sqlite3": "^6.0.1",
@@ -24,7 +25,6 @@
   "build": {
     "appId": "com.retailhub.app",
     "productName": "RetailHub",
-
     "publish": [
       {
         "provider": "github",
