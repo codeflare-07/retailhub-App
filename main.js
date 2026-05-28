@@ -2648,7 +2648,6 @@ ipcMain.handle("google-signin", async () => {
     return new Promise((resolve) => {
         let resolved = false;
         let server = null;
-        let oauthWindow = null;
         let waitingWindow = null;
 
         const finish = (status) => {
@@ -2659,9 +2658,6 @@ ipcMain.handle("google-signin", async () => {
             if (server) {
                 try { server.close(); } catch (_) {}
                 server = null;
-            }
-            if (oauthWindow && !oauthWindow.isDestroyed()) {
-                try { oauthWindow.close(); } catch (_) {}
             }
             if (waitingWindow && !waitingWindow.isDestroyed()) {
                 try { waitingWindow.close(); } catch (_) {}
@@ -2681,52 +2677,29 @@ ipcMain.handle("google-signin", async () => {
             return;
         }
 
-        // ── Start the loopback callback server ────────────────────────
-        server = http.createServer(async (req, res) => {
-            if (!req.url.startsWith("/callback")) {
-                res.writeHead(404);
-                res.end("Not found");
-                return;
-            }
+        // Shared callback processor that handles local server callback from external browser
+        const handleOauthCallback = async (url) => {
+            if (!url.startsWith(OAUTH_REDIRECT_URI)) return;
 
-            const urlObj = new URL(req.url, `http://127.0.0.1:${OAUTH_CALLBACK_PORT}`);
+            const urlObj = new URL(url);
             const code = urlObj.searchParams.get("code");
             const error = urlObj.searchParams.get("error");
 
             if (error) {
-                // User denied access or other error
-                res.writeHead(200, { "Content-Type": "text/html" });
-                res.end(`<html><body style="font-family:sans-serif;text-align:center;padding:60px">
-                    <h2>Authentication cancelled</h2>
-                    <p>You can close this window.</p>
-                    <script>setTimeout(()=>window.close(),2000)</script>
-                </body></html>`);
+                log.error("Google OAuth error from redirect:", error);
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send("cloud-oauth-error", { message: "Authentication cancelled or failed." });
+                }
                 finish(cloudStorage.getStatus());
                 return;
             }
 
-            if (!code) {
-                res.writeHead(400, { "Content-Type": "text/html" });
-                res.end(`<html><body style="font-family:sans-serif;text-align:center;padding:60px">
-                    <h2>Missing authorization code</h2>
-                    <p>Please try again.</p>
-                </body></html>`);
-                finish(cloudStorage.getStatus());
-                return;
-            }
+            if (!code) return;
 
-            // Success page shown in the browser
-            res.writeHead(200, { "Content-Type": "text/html" });
-            res.end(`<html><body style="font-family:sans-serif;background:#f0fdf4;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
-                <div style="text-align:center">
-                    <div style="font-size:48px;margin-bottom:16px">✅</div>
-                    <h2 style="color:#166534;margin:0 0 8px">Connected Successfully!</h2>
-                    <p style="color:#4b5563;margin:0">RetailHub is now linked to your Google account.<br>You can close this window.</p>
-                    <script>setTimeout(()=>window.close(),3000)</script>
-                </div>
-            </body></html>`);
+            // Prevent multiple parallel processing runs
+            if (resolved) return;
 
-            // Update waiting window UI to "processing"
+            // Update waiting window UI to "processing" state
             if (waitingWindow && !waitingWindow.isDestroyed()) {
                 waitingWindow.webContents.executeJavaScript(
                     `document.dispatchEvent(new CustomEvent('oauth-processing'))`
@@ -2763,20 +2736,73 @@ ipcMain.handle("google-signin", async () => {
 
                 startAutoBackupTimer();
 
-                // Notify main window of successful auth
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                    mainWindow.webContents.send("cloud-synced", cloudStorage.getStatus());
+                // Notify waiting window that authorization is fully complete
+                if (waitingWindow && !waitingWindow.isDestroyed()) {
+                    waitingWindow.webContents.executeJavaScript(
+                        `document.dispatchEvent(new CustomEvent('oauth-done'))`
+                    ).catch(() => {});
                 }
 
-                finish(cloudStorage.getStatus());
+                // Notify main window of successful auth to update UI instantly
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send("cloud-synced", cloudStorage.getStatus());
+                    
+                    // Focus back to the main app window automatically
+                    try {
+                        mainWindow.show();
+                        mainWindow.focus();
+                    } catch (_) {}
+                }
+
+                // Let the user see the "Connected!" green screen for 2.5 seconds before auto-closing waiting window
+                setTimeout(() => {
+                    finish(cloudStorage.getStatus());
+                }, 2500);
 
             } catch (err) {
-                console.error("Google OAuth token exchange failed:", err.message);
+                log.error("Google OAuth token exchange failed:", err.message);
                 if (mainWindow && !mainWindow.isDestroyed()) {
                     mainWindow.webContents.send("cloud-oauth-error", { message: err.message });
                 }
                 finish(cloudStorage.getStatus());
             }
+        };
+
+        // ── Start the loopback callback server ────────────────────────
+        server = http.createServer(async (req, res) => {
+            if (!req.url.startsWith("/callback")) {
+                res.writeHead(404);
+                res.end("Not found");
+                return;
+            }
+
+            const fullUrl = `http://127.0.0.1:${OAUTH_CALLBACK_PORT}${req.url}`;
+            const urlObj = new URL(fullUrl);
+            const error = urlObj.searchParams.get("error");
+
+            if (error) {
+                res.writeHead(200, { "Content-Type": "text/html" });
+                res.end(`<html><body style="font-family:sans-serif;text-align:center;padding:60px">
+                    <h2>Authentication cancelled</h2>
+                    <p>You can close this window.</p>
+                    <script>setTimeout(()=>window.close(),2000)</script>
+                </body></html>`);
+                handleOauthCallback(fullUrl);
+                return;
+            }
+
+            // Success page shown in the browser
+            res.writeHead(200, { "Content-Type": "text/html" });
+            res.end(`<html><body style="font-family:sans-serif;background:#f0fdf4;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+                <div style="text-align:center">
+                    <div style="font-size:48px;margin-bottom:16px">✅</div>
+                    <h2 style="color:#166534;margin:0 0 8px">Connected Successfully!</h2>
+                    <p style="color:#4b5563;margin:0">RetailHub is now linked to your Google account.<br>You can close this window.</p>
+                    <script>setTimeout(()=>window.close(),3000)</script>
+                </div>
+            </body></html>`);
+
+            handleOauthCallback(fullUrl);
         });
 
         server.on("error", (err) => {
@@ -2785,7 +2811,7 @@ ipcMain.handle("google-signin", async () => {
         });
 
         server.listen(OAUTH_CALLBACK_PORT, "127.0.0.1", () => {
-            // ── Show waiting window (custom, frameless, beautiful) ─────
+            // ── Show waiting window (custom, frameless, beautiful progress popup) ─────
             waitingWindow = new BrowserWindow({
                 width: 460,
                 height: 300,
@@ -2818,7 +2844,7 @@ ipcMain.handle("google-signin", async () => {
                 }
             });
 
-            // ── Open real Google OAuth page in separate BrowserWindow ──
+            // ── Generate Google OAuth URL ──
             const authUrl =
                 "https://accounts.google.com/o/oauth2/v2/auth?" +
                 querystring.stringify({
@@ -2830,28 +2856,13 @@ ipcMain.handle("google-signin", async () => {
                     prompt: "select_account consent"
                 });
 
-            oauthWindow = new BrowserWindow({
-                width: 500,
-                height: 660,
-                parent: mainWindow,
-                modal: false,
-                resizable: true,
-                autoHideMenuBar: true,
-                title: "Sign in with Google",
-                webPreferences: {
-                    nodeIntegration: false,
-                    contextIsolation: true
+            // Open secure system browser for authentication
+            shell.openExternal(authUrl).catch((err) => {
+                log.error("Failed to open external system browser:", err.message);
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send("cloud-oauth-error", { message: "Failed to open external browser: " + err.message });
                 }
-            });
-
-            oauthWindow.loadURL(authUrl);
-
-            oauthWindow.on("closed", () => {
-                oauthWindow = null;
-                // If OAuth window closed without completing, cancel
-                if (!resolved) {
-                    finish(cloudStorage.getStatus());
-                }
+                finish(cloudStorage.getStatus());
             });
         });
     });
