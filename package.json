@@ -1,6 +1,6 @@
 {
   "name": "retailhub",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "description": "RetailHub — inventory, billing, expenses, and reports",
   "main": "main.js",
   "author": "RetailHub",
@@ -24,6 +24,14 @@
   "build": {
     "appId": "com.retailhub.app",
     "productName": "RetailHub",
+
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "codeflare-07",
+        "repo": "retailhub-App"
+      }
+    ],
     "icon": "build/icon.ico",
     "directories": {
       "output": "dist",
