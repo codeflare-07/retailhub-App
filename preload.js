@@ -129,6 +129,39 @@ restoreDatabase: () =>
         ipcRenderer.invoke("save-auto-backup-interval", interval),
 
     onCloudSynced: (callback) =>
-        ipcRenderer.on("cloud-synced", (event, data) => callback(data))
+        ipcRenderer.on("cloud-synced", (event, data) => callback(data)),
+
+    checkForUpdates: () =>
+        ipcRenderer.invoke("check-for-updates"),
+
+    getAppVersion: () =>
+        ipcRenderer.invoke("get-app-version"),
+
+    installUpdate: () =>
+        ipcRenderer.invoke("install-update"),
+
+    onCheckingForUpdate: (callback) =>
+        ipcRenderer.on("updater:checking-for-update", () => callback()),
+
+    onUpdateAvailable: (callback) =>
+        ipcRenderer.on("updater:update-available", (event, info) => callback(info)),
+
+    onUpdateNotAvailable: (callback) =>
+        ipcRenderer.on("updater:update-not-available", (event, info) => callback(info)),
+
+    onDownloadProgress: (callback) =>
+        ipcRenderer.on("updater:download-progress", (event, progressObj) => callback(progressObj)),
+
+    onUpdateDownloaded: (callback) =>
+        ipcRenderer.on("updater:update-downloaded", (event, info) => callback(info)),
+
+    onUpdateError: (callback) =>
+        ipcRenderer.on("updater:error", (event, err) => callback(err)),
+
+    onOAuthSetupRequired: (callback) =>
+        ipcRenderer.on("cloud-oauth-setup-required", (event, data) => callback(data)),
+
+    onOAuthError: (callback) =>
+        ipcRenderer.on("cloud-oauth-error", (event, data) => callback(data))
 
 });

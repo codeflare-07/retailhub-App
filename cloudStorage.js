@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { safeStorage } = require("electron");
 
 let configPath = "";
 let dbPath = "";
@@ -9,19 +10,50 @@ let config = {
     connected: false,
     email: "",
     name: "RetailHub User",
+    avatarUrl: "",
     backups: [],
     autoBackupInterval: "disabled",
     lastAutoBackup: null,
     lastSynced: null,
-    error: null
+    error: null,
+    accessToken: "",
+    refreshToken: ""
 };
 
-function getGoogleAvatar(email) {
-    const initial = (email ? email[0] : 'G').toUpperCase();
-    const colors = ["#4285F4", "#EA4335", "#FBBC05", "#34A853"];
+function encryptToken(token) {
+    if (!token) return "";
+    try {
+        if (safeStorage.isEncryptionAvailable()) {
+            const encryptedBuffer = safeStorage.encryptString(token);
+            return encryptedBuffer.toString("hex");
+        }
+        return Buffer.from(token).toString("base64");
+    } catch (err) {
+        console.error("Token encryption failed:", err);
+        return "";
+    }
+}
+
+function decryptToken(encryptedHex) {
+    if (!encryptedHex) return "";
+    try {
+        if (safeStorage.isEncryptionAvailable()) {
+            const encryptedBuffer = Buffer.from(encryptedHex, "hex");
+            return safeStorage.decryptString(encryptedBuffer);
+        }
+        return Buffer.from(encryptedHex, "base64").toString("utf8");
+    } catch (err) {
+        console.error("Token decryption failed:", err);
+        return "";
+    }
+}
+
+function getGoogleAvatar(name, email) {
+    const initial = (name ? name[0] : (email ? email[0] : 'G')).toUpperCase();
+    const colors = ["#2563eb", "#ea580c", "#16a34a", "#db2777", "#4f46e5", "#0891b2"];
     const charCode = initial.charCodeAt(0);
     const color = colors[charCode % colors.length];
-    return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect width="40" height="40" fill="${encodeURIComponent(color)}"/><text x="50%" y="62%" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="white" text-anchor="middle">${initial}</text></svg>`;
+    return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><rect width="40" height="40" rx="20" fill="${encodeURIComponent(color)}"/><text x="50%" y="62%" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="white" text-anchor="middle">${initial}</text></svg>`;
 }
 
 function initCloudStorage(userDataDir, databasePath) {
@@ -42,7 +74,17 @@ function loadConfig() {
         if (fs.existsSync(configPath)) {
             const raw = fs.readFileSync(configPath, "utf8");
             const data = JSON.parse(raw);
-            config = { ...config, ...data };
+            
+            // Decrypt tokens during config load
+            const decryptedAccessToken = decryptToken(data.accessToken);
+            const decryptedRefreshToken = decryptToken(data.refreshToken);
+            
+            config = { 
+                ...config, 
+                ...data,
+                accessToken: decryptedAccessToken,
+                refreshToken: decryptedRefreshToken
+            };
             
             // Clean up list by checking which backup files actually exist in our local Drive replica
             if (config.backups) {
@@ -59,7 +101,13 @@ function loadConfig() {
 
 function saveConfig() {
     try {
-        fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
+        // Create an encrypted copy for writing to disk
+        const encryptedConfig = {
+            ...config,
+            accessToken: encryptToken(config.accessToken),
+            refreshToken: encryptToken(config.refreshToken)
+        };
+        fs.writeFileSync(configPath, JSON.stringify(encryptedConfig, null, 2), "utf8");
     } catch (err) {
         console.error("Failed to save Google Drive configuration:", err);
     }
@@ -68,28 +116,54 @@ function saveConfig() {
 function getStatus() {
     // Ensure accurate counts and files list before returning status
     loadConfig();
+    // Use real Google profile picture if available, otherwise generate initials avatar
+    const avatar = config.connected
+        ? (config.avatarUrl || getGoogleAvatar(config.name, config.email))
+        : null;
     return {
         ...config,
-        avatar: config.connected ? getGoogleAvatar(config.email) : null,
+        avatar,
         backupCount: config.backups ? config.backups.length : 0
     };
 }
 
-function signIn(email) {
+function signIn(email, name, accessToken, refreshToken) {
     config.connected = true;
-    config.email = email || "retailhub.user@gmail.com";
-    config.name = "RetailHub User";
+    config.email = email || "";
+    config.name = name || email || "Google Account";
+    config.accessToken = accessToken || "";
+    config.refreshToken = refreshToken || "";
+    config.avatarUrl = ""; // Will be set by setAvatarUrl() after OAuth
     config.error = null;
     saveConfig();
+    return getStatus();
+}
+
+function setAvatarUrl(url) {
+    if (url && typeof url === "string") {
+        config.avatarUrl = url;
+        saveConfig();
+    }
     return getStatus();
 }
 
 function signOut() {
     config.connected = false;
     config.email = "";
+    config.name = "RetailHub User";
+    config.accessToken = "";
+    config.refreshToken = "";
+    config.avatarUrl = "";
     config.error = null;
     saveConfig();
     return getStatus();
+}
+
+// Update only the access token (after a silent refresh)
+function updateAccessToken(newAccessToken) {
+    if (!newAccessToken) return;
+    config.accessToken = newAccessToken;
+    saveConfig();
 }
 
 function saveInterval(interval) {
@@ -196,6 +270,8 @@ module.exports = {
     getStatus,
     signIn,
     signOut,
+    setAvatarUrl,
+    updateAccessToken,
     saveInterval,
     uploadBackup,
     restoreBackup

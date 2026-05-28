@@ -3,211 +3,358 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign in with Google</title>
-    <link rel="icon" type="image/png" href="assets/app.png">
+    <title>Connect Google Drive – RetailHub</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --border: rgba(255,255,255,0.08);
+            --accent: #3b82f6;
+            --accent-glow: rgba(59,130,246,0.25);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --success: #22c55e;
+            --success-glow: rgba(34,197,94,0.2);
+            --radius: 16px;
+        }
+
         body {
-            font-family: 'Roboto', sans-serif;
-            background: #ffffff;
-            color: #202124;
-            margin: 0;
-            padding: 40px;
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
             display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-        }
-
-        .auth-card {
-            width: 100%;
-            max-width: 450px;
-            border: 1px solid #dadce0;
-            border-radius: 8px;
-            padding: 40px 36px;
-            box-sizing: border-box;
-            text-align: center;
-        }
-
-        .google-logo {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 2px;
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 24px;
+            flex-direction: column;
             user-select: none;
+            -webkit-app-region: no-drag;
         }
 
-        .google-logo span:nth-child(1) { color: #4285F4; }
-        .google-logo span:nth-child(2) { color: #EA4335; }
-        .google-logo span:nth-child(3) { color: #FBBC05; }
-        .google-logo span:nth-child(4) { color: #34A853; }
+        /* Frameless titlebar */
+        .titlebar {
+            height: 40px;
+            background: rgba(30,41,59,0.9);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 14px;
+            -webkit-app-region: drag;
+            flex-shrink: 0;
+        }
 
+        .titlebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.02em;
+        }
+
+        .titlebar-brand img {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
+        /* Content */
+        .content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Ambient glow orbs */
+        .content::before {
+            content: "";
+            position: absolute;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 380px;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Google logo ring */
+        .logo-ring {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 20px;
+            position: relative;
+        }
+
+        .logo-ring-bg {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.05);
+            border: 1.5px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Spinning border animation */
+        .spinner-ring {
+            position: absolute;
+            inset: -3px;
+            border-radius: 50%;
+            background: conic-gradient(
+                from 0deg,
+                transparent 0deg,
+                var(--accent) 90deg,
+                transparent 180deg
+            );
+            animation: spin 1.4s linear infinite;
+        }
+
+        .spinner-ring::before {
+            content: "";
+            position: absolute;
+            inset: 3px;
+            border-radius: 50%;
+            background: var(--bg);
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Success state - stops spinning, shows green */
+        .state-processing .spinner-ring {
+            animation-duration: 0.6s;
+        }
+
+        .state-done .spinner-ring {
+            animation: none;
+            background: var(--success);
+        }
+
+        .state-done .logo-ring-bg {
+            border-color: var(--success);
+            background: var(--success-glow);
+        }
+
+        /* Title */
         h1 {
-            font-size: 22px;
-            font-weight: 500;
-            margin: 0 0 8px;
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            letter-spacing: -0.01em;
+            line-height: 1.3;
         }
 
         .subtitle {
-            font-size: 16px;
-            color: #5f6368;
-            margin: 0 0 32px;
-        }
-
-        .form-field {
-            text-align: left;
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.55;
             margin-bottom: 24px;
         }
 
-        label {
-            display: block;
-            font-size: 12px;
-            font-weight: 700;
-            color: #1a73e8;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-        }
-
-        input {
-            width: 100%;
-            height: 48px;
-            padding: 0 16px;
-            border: 1.5px solid #dadce0;
-            border-radius: 4px;
-            font-family: inherit;
-            font-size: 15px;
-            color: #202124;
-            outline: none;
-            box-sizing: border-box;
-            transition: border-color 0.2s;
-        }
-
-        input:focus {
-            border-color: #1a73e8;
-        }
-
-        .scopes-box {
-            background: #f8f9fa;
-            border: 1px dashed #dadce0;
-            border-radius: 6px;
-            padding: 16px;
-            text-align: left;
-            margin-bottom: 32px;
-        }
-
-        .scopes-title {
-            font-size: 13px;
-            font-weight: 700;
-            color: #3c4043;
-            margin-bottom: 8px;
-        }
-
-        .scope-item {
+        /* Status pills row */
+        .steps {
             display: flex;
+            flex-direction: column;
             gap: 10px;
-            align-items: flex-start;
-            font-size: 13px;
-            color: #5f6368;
-            line-height: 1.4;
+            margin-bottom: 24px;
         }
 
-        .scope-item::before {
-            content: "✓";
-            color: #34a853;
-            font-weight: 700;
-        }
-
-        .actions {
+        .step {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-        }
-
-        button {
-            height: 36px;
-            padding: 0 24px;
-            border: none;
-            border-radius: 4px;
-            font-family: inherit;
-            font-size: 14px;
+            gap: 10px;
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-size: 12.5px;
             font-weight: 500;
-            cursor: pointer;
-            transition: background 0.2s;
+            color: var(--text-secondary);
+            transition: all 0.3s ease;
         }
 
-        .btn-cancel {
-            background: transparent;
-            color: #1a73e8;
+        .step-icon {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 11px;
+            font-weight: 700;
+            background: rgba(255,255,255,0.08);
+            color: var(--text-muted);
         }
 
-        .btn-cancel:hover {
-            background: #f4f8ff;
+        /* Active step */
+        .step.active {
+            border-color: rgba(59,130,246,0.35);
+            background: rgba(59,130,246,0.08);
+            color: var(--text-primary);
         }
 
-        .btn-confirm {
-            background: #1a73e8;
-            color: #ffffff;
+        .step.active .step-icon {
+            background: var(--accent);
+            color: #fff;
         }
 
-        .btn-confirm:hover {
-            background: #1557b0;
+        /* Completed step */
+        .step.done {
+            border-color: rgba(34,197,94,0.25);
+            background: rgba(34,197,94,0.06);
+            color: var(--success);
         }
+
+        .step.done .step-icon {
+            background: var(--success);
+            color: #fff;
+        }
+
+        /* Pulse dot for active step */
+        .step.active .step-icon::after {
+            display: none;
+        }
+
+        /* Info footnote */
+        .footnote {
+            font-size: 11.5px;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        .footnote a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        /* Success overlay state */
+        .state-done h1 { color: var(--success); }
+        .state-done .subtitle { color: #86efac; }
     </style>
 </head>
 <body>
 
-<div class="auth-card">
-    <div class="google-logo">
-        <span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span>
+    <div class="titlebar">
+        <div class="titlebar-brand">
+            <img src="assets/app.png" alt="RetailHub" onerror="this.style.display='none'">
+            <span>RetailHub · Google Drive</span>
+        </div>
     </div>
 
-    <h1>Sign in with Google</h1>
-    <div class="subtitle">to continue to Retail Hub Backups</div>
+    <div class="content">
+        <div class="card" id="mainCard">
 
-    <form id="authForm">
-        <div class="form-field">
-            <label for="email">Google Account Email</label>
-            <input type="email" id="email" value="retailhub.user@gmail.com" required placeholder="name@gmail.com">
-        </div>
-
-        <div class="scopes-box">
-            <div class="scopes-title">Retail Hub requests access to:</div>
-            <div class="scope-item">
-                See, edit, create, and delete only the specific Google Drive files you use with this app.
+            <!-- Animated logo ring -->
+            <div class="logo-ring">
+                <div class="spinner-ring"></div>
+                <div class="logo-ring-bg">
+                    <!-- Google "G" logo SVG -->
+                    <svg width="28" height="28" viewBox="0 0 24 24" id="googleIcon">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22-.19-.63z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                    </svg>
+                    <!-- Checkmark shown on success -->
+                    <svg width="28" height="28" viewBox="0 0 24 24" id="checkIcon" style="display:none">
+                        <path fill="#22c55e" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                    </svg>
+                </div>
             </div>
+
+            <h1 id="mainTitle">Opening Google Sign-In…</h1>
+            <p class="subtitle" id="mainSubtitle">
+                A Google login window has opened.<br>
+                Sign in there — RetailHub is waiting.
+            </p>
+
+            <div class="steps">
+                <div class="step active" id="step1">
+                    <div class="step-icon">1</div>
+                    <span>Google sign-in window open — sign in there</span>
+                </div>
+                <div class="step" id="step2">
+                    <div class="step-icon">2</div>
+                    <span>Authorizing your account securely</span>
+                </div>
+                <div class="step" id="step3">
+                    <div class="step-icon">3</div>
+                    <span>Linking Google Drive to RetailHub</span>
+                </div>
+            </div>
+
+            <p class="footnote">
+                Your credentials are handled entirely by Google.<br>
+                RetailHub never sees your password.
+            </p>
+
         </div>
+    </div>
 
-        <div class="actions">
-            <button type="button" class="btn-cancel" id="btnCancel">Cancel</button>
-            <button type="submit" class="btn-confirm">Allow & Sync</button>
-        </div>
-    </form>
-</div>
+    <script>
+        // State transition: idle → processing → done
+        const card = document.getElementById('mainCard');
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+        const step3 = document.getElementById('step3');
+        const mainTitle = document.getElementById('mainTitle');
+        const mainSubtitle = document.getElementById('mainSubtitle');
+        const googleIcon = document.getElementById('googleIcon');
+        const checkIcon = document.getElementById('checkIcon');
 
-<script>
-    const { ipcRenderer } = require("electron");
+        // Called when the auth code has been captured and we're exchanging tokens
+        document.addEventListener('oauth-processing', () => {
+            card.className = 'card state-processing';
+            step1.className = 'step done';
+            step1.querySelector('.step-icon').textContent = '✓';
+            step2.className = 'step active';
+            mainTitle.textContent = 'Verifying your account…';
+            mainSubtitle.textContent = 'Securely exchanging credentials with Google.';
+        });
 
-    const form = document.getElementById("authForm");
-    const cancelBtn = document.getElementById("btnCancel");
+        // Called when auth is fully complete
+        document.addEventListener('oauth-done', () => {
+            card.className = 'card state-done';
+            step1.className = 'step done';
+            step1.querySelector('.step-icon').textContent = '✓';
+            step2.className = 'step done';
+            step2.querySelector('.step-icon').textContent = '✓';
+            step3.className = 'step done';
+            step3.querySelector('.step-icon').textContent = '✓';
+            mainTitle.textContent = 'Connected!';
+            mainSubtitle.textContent = 'Your Google account is now linked to RetailHub.';
+            googleIcon.style.display = 'none';
+            checkIcon.style.display = 'block';
 
-    form.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const email = document.getElementById("email").value.trim();
-        if (email) {
-            ipcRenderer.send("google-auth-success", email);
-        }
-    });
-
-    cancelBtn.addEventListener("click", () => {
-        ipcRenderer.send("google-auth-cancel");
-    });
-</script>
+            // Auto-close after a moment
+            setTimeout(() => window.close(), 2500);
+        });
+    </script>
 
 </body>
 </html>

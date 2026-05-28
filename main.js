@@ -7,11 +7,46 @@ const {
 } = require("electron");
 
 const { autoUpdater } = require("electron-updater");
+const log = require("electron-log");
+
+// Configure logging & updater
+log.transports.file.level = "debug";
+autoUpdater.logger = log;
+log.info("RetailHub App starting...");
 
 app.setName("RetailHub");
+
+if (process.platform === "win32") {
+    app.setAppUserModelId("com.retailhub.app");
+}
+
 const fs = require("fs");
 const path = require("path");
+
+// ─── Load .env (credentials, never committed to Git) ─────────────────────────
+(function loadEnv() {
+    const envPath = path.join(__dirname, ".env");
+    if (fs.existsSync(envPath)) {
+        const lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/);
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith("#")) continue;
+            const eqIdx = trimmed.indexOf("=");
+            if (eqIdx < 1) continue;
+            const key = trimmed.substring(0, eqIdx).trim();
+            const val = trimmed.substring(eqIdx + 1).trim();
+            if (!process.env[key]) process.env[key] = val;
+        }
+        log.info(".env loaded from:", envPath);
+    } else {
+        log.warn(".env not found at:", envPath, "— OAuth credentials must be set via environment variables.");
+    }
+})();
+
 const XLSX = require("xlsx");
+const http = require("http");
+const https = require("https");
+const querystring = require("querystring");
 const {
     verifyPassword,
     hashPassword
@@ -272,9 +307,6 @@ async function reconnectDatabase() {
 
 function createWindow() {
 
-    const iconPath =
-        path.join(__dirname, "assets", "app.png");
-
     mainWindow = new BrowserWindow({
 
         width: 1280,
@@ -282,7 +314,7 @@ function createWindow() {
         minWidth: 1024,
         minHeight: 700,
         autoHideMenuBar: true,
-        icon: fs.existsSync(iconPath) ? iconPath : undefined,
+        icon: path.join(__dirname, "build/icon.ico"),
 
         webPreferences: {
             preload: path.join(__dirname, "preload.js"),
@@ -882,6 +914,73 @@ ipcMain.handle("get-price-history", async () => {
 
 });
 
+// Configure auto-updater events to communicate with the renderer
+autoUpdater.on("checking-for-update", () => {
+    log.info("Checking for update...");
+    if (mainWindow) mainWindow.webContents.send("updater:checking-for-update");
+});
+
+autoUpdater.on("update-available", (info) => {
+    log.info("Update available: version " + info.version);
+    if (mainWindow) mainWindow.webContents.send("updater:update-available", info);
+});
+
+autoUpdater.on("update-not-available", (info) => {
+    log.info("Update not available.");
+    if (mainWindow) mainWindow.webContents.send("updater:update-not-available", info);
+});
+
+autoUpdater.on("download-progress", (progressObj) => {
+    log.info(`Download progress: ${progressObj.percent}%`);
+    if (mainWindow) mainWindow.webContents.send("updater:download-progress", progressObj);
+});
+
+autoUpdater.on("update-downloaded", (info) => {
+    log.info("Update downloaded: version " + info.version);
+    if (mainWindow) mainWindow.webContents.send("updater:update-downloaded", info);
+});
+
+autoUpdater.on("error", (err) => {
+    log.error("Updater error:", err);
+    if (mainWindow) mainWindow.webContents.send("updater:error", err.message || String(err));
+});
+
+// IPC handler for triggering update checks
+ipcMain.handle("check-for-updates", async () => {
+    log.info("Renderer requested update check. app.isPackaged:", app.isPackaged);
+    if (app.isPackaged) {
+        try {
+            const result = await autoUpdater.checkForUpdates();
+            return { success: true, result };
+        } catch (err) {
+            log.error("checkForUpdates failed:", err);
+            return { success: false, error: err.message };
+        }
+    } else {
+        // Dev Simulation Mode (so developers can test UI response smoothly)
+        log.info("Running in development mode, simulating clean updater lifecycle.");
+        if (mainWindow) {
+            mainWindow.webContents.send("updater:checking-for-update");
+            setTimeout(() => {
+                mainWindow.webContents.send("updater:update-not-available", { version: app.getVersion() });
+            }, 1500);
+        }
+        return { success: true, devMode: true };
+    }
+});
+
+// IPC handler for getting real app version
+ipcMain.handle("get-app-version", () => {
+    return app.getVersion();
+});
+
+// IPC handler for restarting to install the update
+ipcMain.handle("install-update", () => {
+    log.info("Quitting and installing update...");
+    autoUpdater.quitAndInstall();
+    return { success: true };
+});
+
 app.whenReady().then(async () => {
 
     try {
@@ -892,25 +991,14 @@ app.whenReady().then(async () => {
 
     createWindow();
 
-    autoUpdater.checkForUpdatesAndNotify();
-
-autoUpdater.on("update-available", () => {
-  dialog.showMessageBox({
-    type: "info",
-    title: "Update Available",
-    message: "New update downloading..."
-  });
-});
-
-autoUpdater.on("update-downloaded", () => {
-  dialog.showMessageBox({
-    type: "info",
-    title: "Update Ready",
-    message: "App will restart to install update."
-  }).then(() => {
-    autoUpdater.quitAndInstall();
-  });
-});
+    // Check for updates automatically in production after window is shown
+    if (app.isPackaged) {
+        setTimeout(() => {
+            autoUpdater.checkForUpdatesAndNotify().catch(err => {
+                log.error("Automatic update check on startup failed:", err);
+            });
+        }, 3000);
+    }
 
 });
 
@@ -2413,71 +2501,375 @@ function triggerAutoCloudSync() {
     }, 15000);
 }
 
+// ─── Google OAuth 2.0 Configuration ─────────────────────────────────────────
+// Credentials are loaded from .env (see loadEnv above) or from the system environment.
+// NEVER hard-code credentials here — .env is in .gitignore.
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
+const GOOGLE_SCOPES = [
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile"
+].join(" ");
+const OAUTH_CALLBACK_PORT = 42857;
+const OAUTH_REDIRECT_URI = `http://127.0.0.1:${OAUTH_CALLBACK_PORT}/callback`;
+
+// Fetch JSON from HTTPS endpoint with optional POST body and headers
+function httpsRequest(options, postBody) {
+    return new Promise((resolve, reject) => {
+        const req = https.request(options, (res) => {
+            let data = "";
+            res.on("data", (chunk) => { data += chunk; });
+            res.on("end", () => {
+                try {
+                    resolve(JSON.parse(data));
+                } catch (e) {
+                    reject(new Error("Invalid JSON response: " + data.substring(0, 200)));
+                }
+            });
+        });
+        req.on("error", reject);
+        if (postBody) req.write(postBody);
+        req.end();
+    });
+}
+
+// Exchange authorization code for access + refresh tokens
+async function exchangeCodeForTokens(code) {
+    const body = querystring.stringify({
+        code,
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        redirect_uri: OAUTH_REDIRECT_URI,
+        grant_type: "authorization_code"
+    });
+
+    return httpsRequest({
+        hostname: "oauth2.googleapis.com",
+        path: "/token",
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Content-Length": Buffer.byteLength(body)
+        }
+    }, body);
+}
+
+// Fetch Google user profile using an access token
+async function fetchGoogleUserInfo(accessToken) {
+    return httpsRequest({
+        hostname: "www.googleapis.com",
+        path: "/oauth2/v2/userinfo",
+        method: "GET",
+        headers: {
+            "Authorization": `Bearer ${accessToken}`
+        }
+    });
+}
+
+// Refresh an expired access token using the stored refresh token
+async function refreshAccessToken(refreshToken) {
+    if (!refreshToken) throw new Error("No refresh token available.");
+    const body = querystring.stringify({
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        refresh_token: refreshToken,
+        grant_type: "refresh_token"
+    });
+    const result = await httpsRequest({
+        hostname: "oauth2.googleapis.com",
+        path: "/token",
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Content-Length": Buffer.byteLength(body)
+        }
+    }, body);
+    if (result.error) throw new Error(result.error_description || result.error);
+    return result; // { access_token, expires_in, token_type, ... }
+}
+
+// Revoke a Google OAuth token (call on sign-out)
+async function revokeGoogleToken(token) {
+    if (!token) return;
+    try {
+        const body = querystring.stringify({ token });
+        await httpsRequest({
+            hostname: "oauth2.googleapis.com",
+            path: "/revoke",
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Content-Length": Buffer.byteLength(body)
+            }
+        }, body);
+        log.info("Google OAuth token revoked successfully.");
+    } catch (err) {
+        log.warn("Token revocation failed (non-fatal):", err.message);
+    }
+}
+
+// Get a valid access token — refreshes automatically if expired
+async function getValidAccessToken() {
+    const status = cloudStorage.getStatus();
+    if (!status.connected) throw new Error("Not connected to Google Drive.");
+
+    // Try to use existing access token
+    if (status.accessToken) {
+        // Quick test: fetch userinfo to see if still valid
+        try {
+            const info = await fetchGoogleUserInfo(status.accessToken);
+            if (info.email) return status.accessToken;
+        } catch (_) {
+            // Token likely expired — fall through to refresh
+        }
+    }
+
+    // Attempt token refresh
+    if (!status.refreshToken) throw new Error("Session expired. Please sign in again.");
+    const refreshed = await refreshAccessToken(status.refreshToken);
+    // Update stored access token
+    cloudStorage.updateAccessToken(refreshed.access_token);
+    return refreshed.access_token;
+}
+
 // Google Drive IPC Handlers
 ipcMain.handle("get-google-drive-status", async () => {
     return cloudStorage.getStatus();
 });
 
 ipcMain.handle("google-signin", async () => {
+    // Prevent multiple auth windows
+    if (global._oauthInProgress) {
+        return cloudStorage.getStatus();
+    }
+    global._oauthInProgress = true;
+
     return new Promise((resolve) => {
-        let authWindow = new BrowserWindow({
-            width: 500,
-            height: 600,
-            parent: mainWindow,
-            modal: true,
-            resizable: false,
-            webPreferences: {
-                nodeIntegration: true,
-                contextIsolation: false
+        let resolved = false;
+        let server = null;
+        let oauthWindow = null;
+        let waitingWindow = null;
+
+        const finish = (status) => {
+            if (resolved) return;
+            resolved = true;
+            global._oauthInProgress = false;
+
+            if (server) {
+                try { server.close(); } catch (_) {}
+                server = null;
+            }
+            if (oauthWindow && !oauthWindow.isDestroyed()) {
+                try { oauthWindow.close(); } catch (_) {}
+            }
+            if (waitingWindow && !waitingWindow.isDestroyed()) {
+                try { waitingWindow.close(); } catch (_) {}
+            }
+            resolve(status);
+        };
+
+        // ── Validate credentials are present (loaded from .env) ───────
+        if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+            const errMsg = "Google OAuth credentials not found. " +
+                "Ensure .env exists with GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.";
+            log.error(errMsg);
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send("cloud-oauth-error", { message: errMsg });
+            }
+            finish(cloudStorage.getStatus());
+            return;
+        }
+
+        // ── Start the loopback callback server ────────────────────────
+        server = http.createServer(async (req, res) => {
+            if (!req.url.startsWith("/callback")) {
+                res.writeHead(404);
+                res.end("Not found");
+                return;
+            }
+
+            const urlObj = new URL(req.url, `http://127.0.0.1:${OAUTH_CALLBACK_PORT}`);
+            const code = urlObj.searchParams.get("code");
+            const error = urlObj.searchParams.get("error");
+
+            if (error) {
+                // User denied access or other error
+                res.writeHead(200, { "Content-Type": "text/html" });
+                res.end(`<html><body style="font-family:sans-serif;text-align:center;padding:60px">
+                    <h2>Authentication cancelled</h2>
+                    <p>You can close this window.</p>
+                    <script>setTimeout(()=>window.close(),2000)</script>
+                </body></html>`);
+                finish(cloudStorage.getStatus());
+                return;
+            }
+
+            if (!code) {
+                res.writeHead(400, { "Content-Type": "text/html" });
+                res.end(`<html><body style="font-family:sans-serif;text-align:center;padding:60px">
+                    <h2>Missing authorization code</h2>
+                    <p>Please try again.</p>
+                </body></html>`);
+                finish(cloudStorage.getStatus());
+                return;
+            }
+
+            // Success page shown in the browser
+            res.writeHead(200, { "Content-Type": "text/html" });
+            res.end(`<html><body style="font-family:sans-serif;background:#f0fdf4;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+                <div style="text-align:center">
+                    <div style="font-size:48px;margin-bottom:16px">✅</div>
+                    <h2 style="color:#166534;margin:0 0 8px">Connected Successfully!</h2>
+                    <p style="color:#4b5563;margin:0">RetailHub is now linked to your Google account.<br>You can close this window.</p>
+                    <script>setTimeout(()=>window.close(),3000)</script>
+                </div>
+            </body></html>`);
+
+            // Update waiting window UI to "processing"
+            if (waitingWindow && !waitingWindow.isDestroyed()) {
+                waitingWindow.webContents.executeJavaScript(
+                    `document.dispatchEvent(new CustomEvent('oauth-processing'))`
+                ).catch(() => {});
+            }
+
+            try {
+                // Exchange code → tokens
+                const tokens = await exchangeCodeForTokens(code);
+
+                if (tokens.error) {
+                    throw new Error(tokens.error_description || tokens.error);
+                }
+
+                // Fetch real Google user profile
+                const userInfo = await fetchGoogleUserInfo(tokens.access_token);
+
+                if (!userInfo.email) {
+                    throw new Error("Could not retrieve Google account email.");
+                }
+
+                // Persist authenticated session with real data
+                const newStatus = cloudStorage.signIn(
+                    userInfo.email,
+                    userInfo.name || userInfo.email,
+                    tokens.access_token,
+                    tokens.refresh_token || ""
+                );
+
+                // Store avatar URL in config if available
+                if (userInfo.picture) {
+                    cloudStorage.setAvatarUrl(userInfo.picture);
+                }
+
+                startAutoBackupTimer();
+
+                // Notify main window of successful auth
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send("cloud-synced", cloudStorage.getStatus());
+                }
+
+                finish(cloudStorage.getStatus());
+
+            } catch (err) {
+                console.error("Google OAuth token exchange failed:", err.message);
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send("cloud-oauth-error", { message: err.message });
+                }
+                finish(cloudStorage.getStatus());
             }
         });
-        
-        authWindow.setMenuBarVisibility(false);
-        authWindow.loadFile("google-auth.html");
-        
-        let resolved = false;
-        
-        const successHandler = (event, email) => {
-            if (!resolved) {
-                resolved = true;
-                const newStatus = cloudStorage.signIn(email);
-                startAutoBackupTimer();
-                resolve(newStatus);
-                if (authWindow && !authWindow.isDestroyed()) {
-                    authWindow.close();
+
+        server.on("error", (err) => {
+            console.error("OAuth callback server error:", err.message);
+            finish(cloudStorage.getStatus());
+        });
+
+        server.listen(OAUTH_CALLBACK_PORT, "127.0.0.1", () => {
+            // ── Show waiting window (custom, frameless, beautiful) ─────
+            waitingWindow = new BrowserWindow({
+                width: 460,
+                height: 300,
+                parent: mainWindow,
+                modal: false,
+                resizable: false,
+                frame: false,
+                transparent: false,
+                show: false,
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true
                 }
-            }
-        };
-        
-        const cancelHandler = () => {
-            if (!resolved) {
-                resolved = true;
-                resolve(cloudStorage.getStatus());
-                if (authWindow && !authWindow.isDestroyed()) {
-                    authWindow.close();
+            });
+
+            waitingWindow.setMenuBarVisibility(false);
+            waitingWindow.loadFile("google-auth.html");
+
+            waitingWindow.once("ready-to-show", () => {
+                if (waitingWindow && !waitingWindow.isDestroyed()) {
+                    waitingWindow.show();
                 }
-            }
-        };
-        
-        ipcMain.once("google-auth-success", successHandler);
-        ipcMain.once("google-auth-cancel", cancelHandler);
-        
-        authWindow.on("closed", () => {
-            ipcMain.removeListener("google-auth-success", successHandler);
-            ipcMain.removeListener("google-auth-cancel", cancelHandler);
-            if (!resolved) {
-                resolved = true;
-                resolve(cloudStorage.getStatus());
-            }
-            authWindow = null;
+            });
+
+            waitingWindow.on("closed", () => {
+                waitingWindow = null;
+                // If user closes the waiting window, cancel auth
+                if (!resolved) {
+                    finish(cloudStorage.getStatus());
+                }
+            });
+
+            // ── Open real Google OAuth page in separate BrowserWindow ──
+            const authUrl =
+                "https://accounts.google.com/o/oauth2/v2/auth?" +
+                querystring.stringify({
+                    client_id: GOOGLE_CLIENT_ID,
+                    redirect_uri: OAUTH_REDIRECT_URI,
+                    response_type: "code",
+                    scope: GOOGLE_SCOPES,
+                    access_type: "offline",
+                    prompt: "select_account consent"
+                });
+
+            oauthWindow = new BrowserWindow({
+                width: 500,
+                height: 660,
+                parent: mainWindow,
+                modal: false,
+                resizable: true,
+                autoHideMenuBar: true,
+                title: "Sign in with Google",
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true
+                }
+            });
+
+            oauthWindow.loadURL(authUrl);
+
+            oauthWindow.on("closed", () => {
+                oauthWindow = null;
+                // If OAuth window closed without completing, cancel
+                if (!resolved) {
+                    finish(cloudStorage.getStatus());
+                }
+            });
         });
     });
 });
 
 ipcMain.handle("google-signout", async () => {
-    const status = cloudStorage.signOut();
+    // Revoke tokens with Google before clearing local state
+    try {
+        const status = cloudStorage.getStatus();
+        if (status.accessToken) {
+            await revokeGoogleToken(status.accessToken);
+        }
+    } catch (err) {
+        log.warn("Could not revoke token during sign-out:", err.message);
+    }
+    const newStatus = cloudStorage.signOut();
     startAutoBackupTimer();
-    return status;
+    return newStatus;
 });
 
 ipcMain.handle("backup-to-google-drive", async () => {

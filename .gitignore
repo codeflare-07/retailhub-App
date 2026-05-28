@@ -4,3 +4,7 @@ build
 *.exe
 *.asar
 *.db
+# Environment variables (OAuth credentials)
+.env
+.env.local
+.env.*.local

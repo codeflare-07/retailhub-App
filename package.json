@@ -1,6 +1,6 @@
 {
   "name": "retailhub",
-  "version": "1.1.5",
+  "version": "1.1.7",
   "description": "RetailHub — inventory, billing, expenses, and reports",
   "main": "main.js",
   "author": "RetailHub",
@@ -8,8 +8,8 @@
   "type": "commonjs",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win",
-    "build:dir": "electron-builder --win --dir"
+    "build": "electron scripts/convert-icon.js && electron-builder --win",
+    "build:dir": "electron scripts/convert-icon.js && electron-builder --win --dir"
   },
   "dependencies": {
     "electron-log": "^5.4.4",
@@ -47,6 +47,7 @@
     ],
     "asar": true,
     "win": {
+      "icon": "build/icon.ico",
       "signAndEditExecutable": false,
       "target": [
         {
@@ -62,7 +63,10 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "RetailHub"
+      "shortcutName": "RetailHub",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
     }
   }
 }

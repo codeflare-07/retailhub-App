@@ -3348,24 +3348,28 @@ async function updateCloudStatusUI() {
 }
 
 function applyCloudStatusToUI(status) {
-    const cloudStatusIndicator = document.getElementById("cloudStatusIndicator");
+    const cloudStatusBadge = document.getElementById("cloudStatusBadge");
     const cloudStatusText = document.getElementById("cloudStatusText");
     const cloudEmailText = document.getElementById("cloudEmailText");
+    const cloudProfileName = document.getElementById("cloudProfileName");
     const cloudLastSyncText = document.getElementById("cloudLastSyncText");
     const cloudBackupCountText = document.getElementById("cloudBackupCountText");
     const googleConnectedActions = document.getElementById("googleConnectedActions");
     const googleAvatarImg = document.getElementById("googleAvatarImg");
     const googleAvatarPlaceholder = document.getElementById("googleAvatarPlaceholder");
     
-    if (!cloudStatusIndicator || !cloudStatusText) return;
+    if (!cloudStatusBadge || !cloudStatusText) return;
     
     if (status.connected) {
-        cloudStatusIndicator.style.color = "#10b981"; // Emerald green
-        cloudStatusIndicator.textContent = "●";
-        cloudStatusText.textContent = "Connected";
+        cloudStatusBadge.className = "cloud-badge cloud-badge--connected";
+        cloudStatusText.textContent = "Cloud Active";
+        
+        if (cloudProfileName) {
+            cloudProfileName.textContent = status.name || "Google Drive Account";
+        }
         
         if (cloudEmailText) {
-            cloudEmailText.textContent = status.email || "Google Drive Connected";
+            cloudEmailText.textContent = status.email || "Connected";
         }
         
         if (googleAvatarImg && googleAvatarPlaceholder) {
@@ -3386,16 +3390,19 @@ function applyCloudStatusToUI(status) {
             const date = new Date(status.lastSynced);
             cloudLastSyncText.textContent = date.toLocaleDateString("en-IN") + " " + date.toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit' });
         } else {
-            cloudLastSyncText.textContent = "Awaiting backup";
+            cloudLastSyncText.textContent = "Awaiting Backup";
         }
         
         if (cloudBackupCountText) {
-            cloudBackupCountText.textContent = `${status.backupCount || 0} backups`;
+            cloudBackupCountText.textContent = `${status.backupCount || 0} Backups`;
         }
     } else {
-        cloudStatusIndicator.style.color = "#ef4444"; // Red disconnected
-        cloudStatusIndicator.textContent = "●";
-        cloudStatusText.textContent = "Disconnected";
+        cloudStatusBadge.className = "cloud-badge cloud-badge--disconnected";
+        cloudStatusText.textContent = "Local Mode";
+        
+        if (cloudProfileName) {
+            cloudProfileName.textContent = "Not Connected";
+        }
         
         if (cloudEmailText) {
             cloudEmailText.textContent = "No account linked";
@@ -3417,7 +3424,7 @@ function applyCloudStatusToUI(status) {
     
     if (status.error) {
         cloudLastSyncText.textContent = "Sync Error";
-        cloudStatusIndicator.style.color = "#ef4444"; // Red error
+        cloudStatusBadge.className = "cloud-badge cloud-badge--disconnected";
         cloudStatusText.textContent = "Sync Error";
     }
     
@@ -3441,20 +3448,25 @@ if (googleSignInBtn) {
     googleSignInBtn.addEventListener("click", async () => {
         try {
             googleSignInBtn.disabled = true;
-            googleSignInBtn.innerHTML = `<span>⏳</span> Connecting...`;
+            googleSignInBtn.innerHTML = `<span class="cloud-loader"></span> Connecting...`;
             
             const status = await window.electronAPI.googleSignIn();
             applyCloudStatusToUI(status);
             
             if (status.connected) {
-                showToast(`Signed in successfully as ${status.email}!`, "success");
+                showToast(`Connected successfully as ${status.name}!`, "success");
             }
         } catch (err) {
             showToast("Google Sign-In failed: " + err.message, "error");
         } finally {
             if (googleSignInBtn) {
                 googleSignInBtn.disabled = false;
-                googleSignInBtn.innerHTML = `<span style="font-weight: 700;">G</span> Sign In with Google`;
+                googleSignInBtn.innerHTML = `
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114-3.51 0-6.357-2.829-6.357-6.315 0-3.486 2.847-6.315 6.357-6.315 1.583 0 2.973.57 4.053 1.516l3.125-3.125C18.89 2.05 15.8 1 12.24 1 5.926 1 12.24 5.925 12.24 12.24c0 6.316 4.927 11.24 11.24 11.24 6.786 0 11.24-4.757 11.24-11.458 0-.741-.067-1.3-.15-1.737H12.24z"/>
+                    </svg>
+                    <span>Connect Google Drive</span>
+                `;
             }
         }
     });
@@ -3487,7 +3499,7 @@ if (googleSignOutBtn) {
 if (cloudSyncNowBtn) {
     cloudSyncNowBtn.addEventListener("click", async () => {
         cloudSyncNowBtn.disabled = true;
-        cloudSyncNowBtn.textContent = "Backing up...";
+        cloudSyncNowBtn.innerHTML = `<span class="cloud-loader"></span> Syncing...`;
         
         try {
             const res = await window.electronAPI.backupToGoogleDrive();
@@ -3637,21 +3649,27 @@ const progressPercentText = document.getElementById("progressPercentText");
 const progressPercentBar = document.getElementById("progressPercentBar");
 
 function initUpdateCenter() {
-    const currentVersion = localStorage.getItem("appVersion") || "1.1.0";
-    if (currentVersionText) {
-        currentVersionText.textContent = currentVersion;
+    // Load persisted last checked time
+    const lastChecked = localStorage.getItem("lastCheckedUpdate");
+    if (lastChecked && lastCheckedText) {
+        lastCheckedText.textContent = lastChecked;
     }
-    if (latestVersionText) {
-        latestVersionText.textContent = currentVersion;
+
+    // Load real app version from main process
+    if (window.electronAPI?.getAppVersion) {
+        window.electronAPI.getAppVersion().then((version) => {
+            if (currentVersionText) currentVersionText.textContent = version;
+            if (latestVersionText) latestVersionText.textContent = version;
+        }).catch(err => console.error("Failed to load app version:", err));
     }
-    
+
     if (updateCenterSettingsBtn) {
         updateCenterSettingsBtn.addEventListener("click", () => {
             settingsPanel.style.display = "none";
             updateModal.style.display = "flex";
         });
     }
-    
+
     const hideUpdateModal = () => {
         if (updateModal) {
             updateModal.style.display = "none";
@@ -3660,94 +3678,150 @@ function initUpdateCenter() {
             progressPercentText.textContent = "0%";
         }
     };
-    
+
     if (closeUpdateModal) closeUpdateModal.addEventListener("click", hideUpdateModal);
     if (cancelUpdateBtn) cancelUpdateBtn.addEventListener("click", hideUpdateModal);
-    
+
     if (checkUpdatesBtn) {
-        checkUpdatesBtn.addEventListener("click", () => {
+        checkUpdatesBtn.addEventListener("click", async () => {
             checkUpdatesBtn.disabled = true;
             checkUpdatesBtn.textContent = "Checking...";
-            
-            setTimeout(() => {
-                const now = new Date();
-                const checkTime = now.toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                lastCheckedText.textContent = checkTime;
-                
-                if (simulateUpdateCheckbox && simulateUpdateCheckbox.checked) {
-                    latestVersionText.textContent = "1.2.0";
-                    updateStatusText.textContent = "Update Available";
-                    updateStatusText.className = "badge badge--low";
-                    updateStatusText.style.background = "var(--warning-soft)";
-                    updateStatusText.style.color = "var(--warning)";
-                    
-                    checkUpdatesBtn.style.display = "none";
-                    installUpdateBtn.style.display = "inline-flex";
-                    showToast("New RetailHub version 1.2.0 is available for download!", "success");
+            updateStatusText.textContent = "Checking...";
+            updateStatusText.className = "badge";
+            updateStatusText.style.background = "var(--border-light)";
+            updateStatusText.style.color = "var(--text-secondary)";
+
+            try {
+                if (window.electronAPI?.checkForUpdates) {
+                    await window.electronAPI.checkForUpdates();
                 } else {
-                    latestVersionText.textContent = currentVersion;
-                    updateStatusText.textContent = "Up to date";
-                    updateStatusText.className = "badge badge--ok";
-                    updateStatusText.style.background = "var(--success-soft)";
-                    updateStatusText.style.color = "var(--success)";
-                    
-                    checkUpdatesBtn.style.display = "inline-flex";
-                    installUpdateBtn.style.display = "none";
-                    showToast("RetailHub is up to date.", "success");
+                    throw new Error("Electron API is not available.");
                 }
-                
+            } catch (err) {
+                console.error("Check for updates trigger failed:", err);
+                showToast("Update check failed: " + err.message, "error");
                 checkUpdatesBtn.disabled = false;
                 checkUpdatesBtn.textContent = "Check for Updates";
-            }, 1200);
+            }
         });
     }
-    
+
     if (installUpdateBtn) {
         installUpdateBtn.addEventListener("click", () => {
-            installUpdateBtn.style.display = "none";
-            cancelUpdateBtn.style.display = "none";
-            updateDownloadProgressWrap.style.display = "block";
+            if (window.electronAPI?.installUpdate) {
+                window.electronAPI.installUpdate();
+            }
+        });
+    }
+
+    // Register actual IPC listeners from main process
+    if (window.electronAPI) {
+        window.electronAPI.onCheckingForUpdate(() => {
+            if (updateStatusText) {
+                updateStatusText.textContent = "Checking...";
+                updateStatusText.className = "badge";
+                updateStatusText.style.background = "var(--border-light)";
+                updateStatusText.style.color = "var(--text-secondary)";
+            }
+        });
+
+        window.electronAPI.onUpdateAvailable((info) => {
+            // Persist check time
+            const now = new Date();
+            const checkTime = now.toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            localStorage.setItem("lastCheckedUpdate", checkTime);
+            if (lastCheckedText) lastCheckedText.textContent = checkTime;
+
+            if (latestVersionText) latestVersionText.textContent = info.version;
+            if (updateStatusText) {
+                updateStatusText.textContent = "Downloading...";
+                updateStatusText.className = "badge badge--low";
+                updateStatusText.style.background = "var(--warning-soft)";
+                updateStatusText.style.color = "var(--warning)";
+            }
+            if (checkUpdatesBtn) checkUpdatesBtn.style.display = "none";
+            if (installUpdateBtn) installUpdateBtn.style.display = "none";
+            if (updateDownloadProgressWrap) updateDownloadProgressWrap.style.display = "block";
             
-            let percent = 0;
-            progressStatusText.textContent = "Downloading updates from secure server...";
-            progressPercentText.textContent = "0%";
-            progressPercentBar.style.width = "0%";
-            
-            const downloadInterval = setInterval(() => {
-                percent += Math.floor(Math.random() * 8) + 4;
-                if (percent >= 100) {
-                    percent = 100;
-                    clearInterval(downloadInterval);
-                    
-                    progressStatusText.textContent = "Verifying package integrity...";
-                    setTimeout(() => {
-                        progressStatusText.textContent = "Extracting & Installing RetailHub 1.2.0...";
-                        
-                        setTimeout(() => {
-                            // Save version update to persistence
-                            localStorage.setItem("appVersion", "1.2.0");
-                            
-                            // Ask to restart
-                            if (confirm("RetailHub updated to version 1.2.0 successfully! Click OK to restart and apply changes.")) {
-                                window.location.reload();
-                            } else {
-                                hideUpdateModal();
-                                if (currentVersionText) currentVersionText.textContent = "1.2.0";
-                                if (latestVersionText) latestVersionText.textContent = "1.2.0";
-                                updateStatusText.textContent = "Up to date";
-                                updateStatusText.className = "badge badge--ok";
-                                updateStatusText.style.background = "var(--success-soft)";
-                                updateStatusText.style.color = "var(--success)";
-                                checkUpdatesBtn.style.display = "inline-flex";
-                                cancelUpdateBtn.style.display = "inline-flex";
-                            }
-                        }, 1500);
-                    }, 1200);
+            showToast(`New version ${info.version} is available and downloading!`, "success");
+        });
+
+        window.electronAPI.onUpdateNotAvailable((info) => {
+            // Persist check time
+            const now = new Date();
+            const checkTime = now.toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            localStorage.setItem("lastCheckedUpdate", checkTime);
+            if (lastCheckedText) lastCheckedText.textContent = checkTime;
+
+            if (latestVersionText) latestVersionText.textContent = info.version || (currentVersionText ? currentVersionText.textContent : "1.1.5");
+            if (updateStatusText) {
+                updateStatusText.textContent = "Up to date";
+                updateStatusText.className = "badge badge--ok";
+                updateStatusText.style.background = "var(--success-soft)";
+                updateStatusText.style.color = "var(--success)";
+            }
+            if (checkUpdatesBtn) {
+                checkUpdatesBtn.style.display = "inline-flex";
+                checkUpdatesBtn.disabled = false;
+                checkUpdatesBtn.textContent = "Check for Updates";
+            }
+            if (installUpdateBtn) installUpdateBtn.style.display = "none";
+            if (updateDownloadProgressWrap) updateDownloadProgressWrap.style.display = "none";
+
+            showToast("RetailHub is up to date.", "success");
+        });
+
+        window.electronAPI.onDownloadProgress((progress) => {
+            if (updateDownloadProgressWrap) updateDownloadProgressWrap.style.display = "block";
+            if (progressStatusText) {
+                const mbPerSec = progress.bytesPerSecond ? (progress.bytesPerSecond / 1024 / 1024).toFixed(2) : "0.00";
+                progressStatusText.textContent = `Downloading update (${mbPerSec} MB/s)...`;
+            }
+            const percent = Math.round(progress.percent || 0);
+            if (progressPercentText) progressPercentText.textContent = `${percent}%`;
+            if (progressPercentBar) progressPercentBar.style.width = `${percent}%`;
+        });
+
+        window.electronAPI.onUpdateDownloaded((info) => {
+            if (updateStatusText) {
+                updateStatusText.textContent = "Ready to Install";
+                updateStatusText.className = "badge badge--ok";
+                updateStatusText.style.background = "var(--success-soft)";
+                updateStatusText.style.color = "var(--success)";
+            }
+            if (updateDownloadProgressWrap) updateDownloadProgressWrap.style.display = "none";
+            if (checkUpdatesBtn) checkUpdatesBtn.style.display = "none";
+            if (installUpdateBtn) {
+                installUpdateBtn.style.display = "inline-flex";
+                installUpdateBtn.textContent = "Restart & Install";
+            }
+
+            showToast(`RetailHub version ${info.version} downloaded! Restarting to install update...`, "success");
+
+            // Auto-restart after 2 seconds to install the downloaded update
+            setTimeout(() => {
+                if (window.electronAPI?.installUpdate) {
+                    window.electronAPI.installUpdate();
                 }
-                
-                progressPercentText.textContent = `${percent}%`;
-                progressPercentBar.style.width = `${percent}%`;
-            }, 150);
+            }, 2000);
+        });
+
+        window.electronAPI.onUpdateError((err) => {
+            if (updateStatusText) {
+                updateStatusText.textContent = "Update Error";
+                updateStatusText.className = "badge badge--error";
+                updateStatusText.style.background = "rgba(239, 68, 68, 0.1)";
+                updateStatusText.style.color = "var(--danger)";
+            }
+            if (checkUpdatesBtn) {
+                checkUpdatesBtn.style.display = "inline-flex";
+                checkUpdatesBtn.disabled = false;
+                checkUpdatesBtn.textContent = "Check for Updates";
+            }
+            if (installUpdateBtn) installUpdateBtn.style.display = "none";
+            if (updateDownloadProgressWrap) updateDownloadProgressWrap.style.display = "none";
+
+            showToast("Update failed: " + err, "error");
         });
     }
 }
@@ -3756,7 +3830,31 @@ function initUpdateCenter() {
 if (window.electronAPI?.onCloudSynced) {
     window.electronAPI.onCloudSynced((freshStatus) => {
         applyCloudStatusToUI(freshStatus);
-        showToast("Database auto-backed up to cloud.", "success");
+        // Only show toast for background auto-backups (not for sign-in triggered syncs)
+        if (freshStatus && freshStatus.connected && freshStatus.lastSynced) {
+            showToast("Database auto-backed up to Google Drive.", "success");
+        }
+    });
+}
+
+// OAuth credentials not configured — show guidance dialog
+if (window.electronAPI?.onOAuthSetupRequired) {
+    window.electronAPI.onOAuthSetupRequired((data) => {
+        showAppDialog({
+            variant: "warn",
+            title: "Google OAuth Setup Required",
+            message: "Google credentials are not configured yet.",
+            detail: "To enable real Google sign-in, you need to create OAuth credentials in Google Cloud Console and add them to main.js. See the developer notes for setup instructions.",
+            confirmText: "OK"
+        });
+    });
+}
+
+// OAuth token exchange or network error
+if (window.electronAPI?.onOAuthError) {
+    window.electronAPI.onOAuthError((data) => {
+        showToast("Google sign-in error: " + (data?.message || "Unknown error"), "error");
+        updateCloudStatusUI();
     });
 }
 
