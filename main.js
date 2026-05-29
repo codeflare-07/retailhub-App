@@ -307,6 +307,17 @@ async function reconnectDatabase() {
 
 function createWindow() {
 
+    let iconPath = path.join(__dirname, "build/icon.ico");
+    
+    // When packaged, the icon is embedded in the executable, but we can still try to use the build folder
+    if (app.isPackaged) {
+        iconPath = path.join(process.resourcesPath, "../build/icon.ico");
+        if (!fs.existsSync(iconPath)) {
+            // Fallback: use the embedded icon from the executable
+            iconPath = path.join(process.execPath, "../..");
+        }
+    }
+
     mainWindow = new BrowserWindow({
 
         width: 1280,
@@ -314,7 +325,7 @@ function createWindow() {
         minWidth: 1024,
         minHeight: 700,
         autoHideMenuBar: true,
-        icon: path.join(__dirname, "build/icon.ico"),
+        icon: fs.existsSync(iconPath) ? iconPath : undefined,
 
         webPreferences: {
             preload: path.join(__dirname, "preload.js"),
