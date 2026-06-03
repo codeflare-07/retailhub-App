@@ -183,7 +183,7 @@ function clearSellQtyField() {
         document.getElementById("sellQty");
 
     if (qtyField) {
-        qtyField.value = "";
+        qtyField.value = "1";
     }
 
 }
@@ -196,17 +196,17 @@ function restorePosFocus(selectAll) {
 
     requestAnimationFrame(() => {
 
-        const qtyField =
-            document.getElementById("sellQty");
+        const searchField =
+            document.getElementById("posSearchInput");
 
-        if (!qtyField) {
+        if (!searchField) {
             return;
         }
 
-        qtyField.focus();
+        searchField.focus();
 
-        if (selectAll && qtyField.value) {
-            qtyField.select();
+        if (selectAll && searchField.value) {
+            searchField.select();
         }
 
     });
@@ -482,6 +482,8 @@ const searchInput =
 const modal = document.getElementById("productModal");
 const stockModal = document.getElementById("stockModal");
 const sellModal = document.getElementById("sellModal");
+const expenseModal = document.getElementById("expenseModal");
+const billHistoryModal = document.getElementById("billHistoryModal");
 
 const addBtn = document.getElementById("addBtn");
 const stockBtn = document.getElementById("stockBtn");
@@ -645,6 +647,25 @@ function resetSellBillForm(clearCart, keepDoneView) {
     }
 
     clearSellQtyField();
+
+    const searchInp = document.getElementById("posSearchInput");
+    if (searchInp) searchInp.value = "";
+
+    const barcodeInp = document.getElementById("posBarcodeInput");
+    if (barcodeInp) barcodeInp.value = "";
+
+    const discInp = document.getElementById("discountRate");
+    if (discInp) discInp.value = "0";
+
+    const taxInp = document.getElementById("taxRate");
+    if (taxInp) taxInp.value = "0";
+
+    const cashRec = document.getElementById("cashReceived");
+    if (cashRec) cashRec.value = "";
+
+    const balRet = document.getElementById("balanceReturn");
+    if (balRet) balRet.textContent = "₹0.00";
+
     document.getElementById("customerName").value = "";
     document.getElementById("customerMobile").value = "";
     document.getElementById("paymentMode").value = "Cash";
@@ -922,7 +943,7 @@ function renderBillCart() {
 
         tbody.innerHTML = `
             <tr id="billCartEmpty">
-                <td colspan="5" class="pos-cart-empty">No items yet — add products to this bill</td>
+                <td colspan="5" class="pos-cart-empty">No items added yet. Search or scan to add products.</td>
             </tr>
         `;
         updateBillTotals();
@@ -936,24 +957,37 @@ function renderBillCart() {
 
         tbody.innerHTML += `
             <tr>
-                <td><strong>${item.productName}</strong></td>
                 <td>
-                    <input
-                        type="text"
-                        class="cart-qty-input input-num app-input"
-                        inputmode="numeric"
-                        value="${item.qty}"
-                        onchange="updateBillItemQty(${index}, this.value)"
-                        onclick="event.stopPropagation()">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 20px; background: var(--accent-soft); color: var(--accent); padding: 6px; border-radius: var(--radius-sm);">📦</span>
+                        <div>
+                            <div style="font-weight: 700; color: var(--text-primary); text-align: left;">${item.productName}</div>
+                            <div style="font-size: 10px; color: var(--text-muted); text-align: left;">Product ID: #${item.productId}</div>
+                        </div>
+                    </div>
                 </td>
-                <td>₹${item.sellPrice}</td>
-                <td>₹${item.lineTotal}</td>
-                <td>
+                <td class="text-center">
+                    <div class="inline-qty-controls">
+                        <button type="button" class="inline-qty-btn" onclick="adjustCartItemQty(${index}, -1)">−</button>
+                        <input
+                            type="text"
+                            class="inline-qty-input"
+                            inputmode="numeric"
+                            value="${item.qty}"
+                            onchange="updateBillItemQty(${index}, this.value)"
+                            onclick="event.stopPropagation()">
+                        <button type="button" class="inline-qty-btn" onclick="adjustCartItemQty(${index}, 1)">+</button>
+                    </div>
+                </td>
+                <td class="text-right">₹${Number(item.sellPrice).toFixed(2)}</td>
+                <td class="text-right" style="font-weight: 700; color: var(--text-primary);">₹${Number(item.lineTotal).toFixed(2)}</td>
+                <td class="text-center">
                     <button
                         type="button"
-                        class="btn--icon-remove"
+                        class="modal-close"
+                        style="width: 22px; height: 22px; font-size: 10px; background: var(--danger-soft); color: var(--danger);"
                         onclick="removeBillItem(${index})"
-                        aria-label="Remove">×</button>
+                        aria-label="Remove">✕</button>
                 </td>
             </tr>
         `;
@@ -978,14 +1012,24 @@ function updateBillTotals() {
             0
         );
 
-    document.getElementById("billSubtotal").innerText =
-        "₹" + subtotal;
+    const discountRate = parseFloat(document.getElementById("discountRate").value) || 0;
+    const taxRate = parseFloat(document.getElementById("taxRate").value) || 0;
 
-    document.getElementById("billGrandTotal").innerText =
-        "₹" + subtotal;
+    const discountAmount = subtotal * (discountRate / 100);
+    const taxableAmount = subtotal - discountAmount;
+    const taxAmount = taxableAmount * (taxRate / 100);
+    const grandTotal = taxableAmount + taxAmount;
+
+    document.getElementById("billSubtotal").innerText = "₹" + subtotal.toFixed(2);
+    document.getElementById("posSubtotalVal").innerText = "₹" + subtotal.toFixed(2);
+    document.getElementById("posDiscountVal").innerText = "-₹" + discountAmount.toFixed(2);
+    document.getElementById("posTaxVal").innerText = "+₹" + taxAmount.toFixed(2);
+    document.getElementById("billGrandTotal").innerText = "₹" + grandTotal.toFixed(2);
 
     document.getElementById("billItemCount").innerText =
         `${sellCart.length} item${sellCart.length === 1 ? "" : "s"} · ${pieces} pcs`;
+
+    calculateBalanceReturn();
 
 }
 
@@ -1007,13 +1051,20 @@ async function completeBill() {
 
     }
 
+    const discountRate = parseFloat(document.getElementById("discountRate").value) || 0;
+    const taxRate = parseFloat(document.getElementById("taxRate").value) || 0;
+
     const bill = {
 
-        items: sellCart.map((item) => ({
-            productId: item.productId,
-            qty: item.qty,
-            sellPrice: item.sellPrice
-        })),
+        items: sellCart.map((item) => {
+            const basePrice = Number(item.sellPrice) || 0;
+            const netPrice = basePrice * (1 - discountRate / 100) * (1 + taxRate / 100);
+            return {
+                productId: item.productId,
+                qty: item.qty,
+                sellPrice: netPrice
+            };
+        }),
 
         paymentMode:
             document.getElementById("paymentMode").value,
@@ -1022,7 +1073,11 @@ async function completeBill() {
             document.getElementById("customerName").value.trim(),
 
         customerMobile:
-            document.getElementById("customerMobile").value.trim()
+            document.getElementById("customerMobile").value.trim(),
+
+        tax: taxRate,
+
+        discount: discountRate
 
     };
 
@@ -1031,25 +1086,15 @@ async function completeBill() {
         const result =
             await window.electronAPI.sellBill(bill);
 
-        const cartSnapshot = sellCart.map((item) => ({ ...item }));
-
-        const checkout = {
-            paymentMode: bill.paymentMode,
-            customerName: bill.customerName,
-            customerMobile: bill.customerMobile
-        };
-
         showToast(
             `Bill ${formatBillId(result.billId)} saved · ₹${result.totalSale}`,
             "success"
         );
 
         sellCart = [];
-        resetSellBillForm(false, true);
+        resetSellBillForm(true, false);
 
-        showPosBillDone(result, cartSnapshot, checkout);
-
-        sellModal.style.display = "flex";
+        await openInvoicePreview(result.billId, false);
 
         await loadProducts();
         await loadSales();
@@ -1167,10 +1212,10 @@ if (closeBillDoneBtn) {
 // ADD PRODUCT
 // --------------------
 
-addBtn.addEventListener("click", () => {
-    closeAllViews();
+if (addBtn) addBtn.addEventListener("click", () => {
+    if (typeof closeAllViews === "function") closeAllViews();
     openAddProductModal();
-    setActiveTab("addBtn");
+    if (typeof setActiveTab === "function") setActiveTab("addBtn");
 });
 
 function closeAddProductModal() {
@@ -1185,7 +1230,7 @@ function closeStockModalFn() {
 
 }
 
-closeAddModal.addEventListener("click", closeAddProductModal);
+if (closeAddModal) closeAddModal.addEventListener("click", closeAddProductModal);
 
 const cancelAddBtn =
     document.getElementById("cancelAddBtn");
@@ -1194,7 +1239,7 @@ if (cancelAddBtn) {
     cancelAddBtn.addEventListener("click", closeAddProductModal);
 }
 
-closeStockModal.addEventListener("click", closeStockModalFn);
+if (closeStockModal) closeStockModal.addEventListener("click", closeStockModalFn);
 
 const cancelStockBtn =
     document.getElementById("cancelStockBtn");
@@ -1203,7 +1248,7 @@ if (cancelStockBtn) {
     cancelStockBtn.addEventListener("click", closeStockModalFn);
 }
 
-closeSellModal.addEventListener("click", closeSellModalFn);
+if (closeSellModal) closeSellModal.addEventListener("click", closeSellModalFn);
 
 const cancelSellBtn =
     document.getElementById("cancelSellBtn");
@@ -1230,7 +1275,7 @@ if (sellProductSelect) {
     sellProductSelect.addEventListener("change", updateSellProductFields);
 }
 
-sellProductBtn.addEventListener("click", completeBill);
+if (sellProductBtn) sellProductBtn.addEventListener("click", completeBill);
 
 let repDailyChartInstance = null;
 let repMonthlyChartInstance = null;
@@ -1385,26 +1430,10 @@ async function loadReportsAnalytics(range = null) {
     }
 }
 
-reportsBtn.addEventListener("click", async () => {
-    closeAllViews();
-    reportsModal.style.display = "flex";
-    
-    // Set default dates if empty
-    const fromEl = document.getElementById("reportFrom");
-    const toEl = document.getElementById("reportTo");
-    if (fromEl && !fromEl.value) {
-        fromEl.value = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-    }
-    if (toEl && !toEl.value) {
-        toEl.value = new Date().toISOString().split("T")[0];
-    }
-    
-    await loadReportsAnalytics();
-    setActiveTab("reportsBtn");
-});
+// reportsBtn click listener removed as it is handled dynamically in DOMContentLoaded
 
-closeReportsModal.addEventListener("click", () => {
-    reportsModal.style.display = "none";
+if (closeReportsModal) closeReportsModal.addEventListener("click", () => {
+    if (reportsModal) reportsModal.style.display = "none";
 });
 
 // Run report filter click
@@ -1911,20 +1940,7 @@ if (closeBillHistoryModalBtn) {
 
 }
 
-const expensesBtnEl =
-    document.getElementById("expensesBtn");
-
-if (expensesBtnEl) {
-
-    expensesBtnEl.addEventListener("click", async () => {
-        closeAllViews();
-        if (typeof openExpenseModal === "function") {
-            await openExpenseModal();
-        }
-        setActiveTab("expensesBtn");
-    });
-
-}
+// expensesBtn click listener removed as it is handled dynamically in DOMContentLoaded
 
 if (salesHistoryReportBtn) {
     salesHistoryReportBtn.addEventListener(
@@ -2117,7 +2133,7 @@ document.querySelectorAll("#stockQuickBtns .qty-quick-btn").forEach((btn) => {
 
 });
 
-stockBtn.addEventListener("click", async () => {
+if (stockBtn) stockBtn.addEventListener("click", async () => {
     closeAllViews();
     await populateStockProductSelect();
     stockModal.style.display = "flex";
@@ -2131,11 +2147,176 @@ stockBtn.addEventListener("click", async () => {
     setActiveTab("stockBtn");
 });
 
-sellBtn.addEventListener("click", async () => {
-    closeAllViews();
-    await openSellBillModal();
-    setActiveTab("sellBtn");
-});
+// sellBtn click listener removed as it is handled dynamically in DOMContentLoaded
+
+window.adjustCartItemQty = function(index, delta) {
+    const item = sellCart[index];
+    if (item) {
+        const newQty = item.qty + delta;
+        window.updateBillItemQty(index, newQty);
+    }
+};
+
+function calculateBalanceReturn() {
+    const grandTotalText = document.getElementById("billGrandTotal")?.innerText.replace("₹", "") || "0";
+    const grandTotal = parseFloat(grandTotalText) || 0;
+    const cashInput = document.getElementById("cashReceived");
+    if (!cashInput) return;
+    
+    const cashReceived = parseFloat(cashInput.value) || 0;
+
+    const balance = cashReceived - grandTotal;
+    const balanceEl = document.getElementById("balanceReturn");
+    if (balanceEl) {
+        if (balance >= 0) {
+            balanceEl.innerText = "₹" + balance.toFixed(2);
+            balanceEl.className = "text-success";
+        } else {
+            balanceEl.innerText = "-₹" + Math.abs(balance).toFixed(2);
+            balanceEl.className = "text-danger";
+        }
+    }
+}
+
+let currentPreviewBillId = null;
+
+async function openInvoicePreview(billId, isDraft = false, draftData = null) {
+    const previewModal = document.getElementById("invoicePreviewModal");
+    const contentEl = document.getElementById("thermalReceiptContent");
+    const printBtn = document.getElementById("previewPrintBtn");
+    const pdfBtn = document.getElementById("previewPdfBtn");
+    const shareBtn = document.getElementById("previewShareBtn");
+
+    if (!previewModal || !contentEl) return;
+
+    currentPreviewBillId = billId;
+
+    if (isDraft && draftData) {
+        contentEl.innerHTML = generateThermalReceiptHtml(draftData);
+        if (printBtn) printBtn.disabled = true;
+        if (pdfBtn) pdfBtn.disabled = true;
+        if (shareBtn) shareBtn.disabled = true;
+    } else {
+        try {
+            const data = await window.electronAPI.getBillDetails(billId);
+            contentEl.innerHTML = generateThermalReceiptHtml(data);
+            if (printBtn) printBtn.disabled = false;
+            if (pdfBtn) pdfBtn.disabled = false;
+            if (shareBtn) shareBtn.disabled = false;
+        } catch (e) {
+            showToast("Failed to load invoice preview: " + e.message, "error");
+            return;
+        }
+    }
+
+    previewModal.style.display = "flex";
+}
+
+function getShopProfileFromDOM() {
+    const shopName = document.getElementById("sidebarShopName")?.innerText || "RetailHub";
+    const ownerLine = document.getElementById("sidebarOwnerLine")?.textContent || "";
+    const ownerName = ownerLine.replace("Owner: ", "");
+    const mobile = document.getElementById("sidebarMobileLine")?.textContent || "";
+    const email = document.getElementById("sidebarEmailLine")?.textContent || "";
+    const gst = document.getElementById("sidebarGstLine")?.textContent || "";
+    const address = document.getElementById("sidebarAddressLine")?.textContent || "";
+    const logoImg = document.getElementById("profileLogoImg");
+    const logoSrc = logoImg && logoImg.style.display !== "none" ? logoImg.src : "";
+
+    return {
+        shop_name: shopName,
+        owner_name: ownerName,
+        mobile: mobile !== "-" ? mobile : "",
+        email: email !== "-" ? email : "",
+        gst_number: gst !== "-" ? gst : "",
+        address: address !== "-" ? address : "",
+        logo: logoSrc
+    };
+}
+
+function generateThermalReceiptHtml(data) {
+    const profile = data.profile || getShopProfileFromDOM();
+    const lines = data.lines || [];
+    const billId = data.billId;
+    const billLabel = billId ? (String(billId).startsWith("RH-") ? String(billId) : `#${String(billId).slice(-6)}`) : "DRAFT PREVIEW";
+
+    const discountRate = Number(data.discount) || 0;
+    const taxRate = Number(data.tax) || 0;
+    const factor = (1 - discountRate / 100) * (1 + taxRate / 100);
+    const safeFactor = factor > 0 ? factor : 1;
+
+    let subtotal = 0;
+    const rows = lines.map((line) => {
+        const netPrice = Number(line.sellPrice || line.sell_price) || 0;
+        const basePrice = netPrice / safeFactor;
+        const baseAmount = basePrice * (Number(line.qty) || 0);
+        subtotal += baseAmount;
+        
+        return `
+            <tr>
+                <td style="padding: 4px 0; max-width: 140px; word-wrap: break-word; text-align: left;">${line.productName || line.product_name}</td>
+                <td class="num" style="padding: 4px 0; text-align: right;">${line.qty}</td>
+                <td class="num" style="padding: 4px 0; text-align: right;">₹${basePrice.toFixed(2)}</td>
+                <td class="num" style="padding: 4px 0; text-align: right;">₹${baseAmount.toFixed(2)}</td>
+            </tr>
+        `;
+    }).join("");
+
+    const discountAmount = subtotal * (discountRate / 100);
+    const taxableAmount = subtotal - discountAmount;
+    const taxAmount = taxableAmount * (taxRate / 100);
+    const grandTotal = taxableAmount + taxAmount;
+
+    const qrData = `Bill ID: ${billLabel}\nTotal: ₹${grandTotal.toFixed(2)}\nShop: ${profile.shop_name}`;
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(qrData)}`;
+
+    return `
+        <div class="thermal-header" style="text-align: center; margin-bottom: 12px;">
+            ${profile.logo ? `<img src="${profile.logo}" class="thermal-logo" alt="Logo" style="max-width: 60px; max-height: 60px; margin-bottom: 6px; object-fit: contain;">` : ""}
+            <div class="thermal-title" style="font-size: 14px; font-weight: 700; text-transform: uppercase;">${profile.shop_name}</div>
+            <div style="font-size: 10px; color: #555; margin-top: 4px;">
+                ${profile.address ? `<div>${profile.address}</div>` : ""}
+                ${profile.mobile ? `<div>Mob: ${profile.mobile}</div>` : ""}
+                ${profile.email ? `<div>Email: ${profile.email}</div>` : ""}
+                ${profile.gst_number ? `<div>GSTIN: ${profile.gst_number}</div>` : ""}
+            </div>
+        </div>
+        <div class="thermal-divider" style="border-top: 1px dashed #000; margin: 8px 0;"></div>
+        <div class="thermal-meta" style="font-size: 10px; line-height: 1.3;">
+            <div style="display: flex; justify-content: space-between;"><span><strong>Bill:</strong> ${billLabel}</span><span><strong>Date:</strong> ${data.date || new Date().toLocaleString()}</span></div>
+            <div style="display: flex; justify-content: space-between; margin-top: 2px;"><span><strong>Cust:</strong> ${data.customerName || "Walk-in Customer"}</span><span><strong>Mob:</strong> ${data.customerMobile || "—"}</span></div>
+            <div style="display: flex; justify-content: space-between; margin-top: 2px;"><span><strong>Payment:</strong> ${data.paymentMode || "Cash"}</span><span></span></div>
+        </div>
+        <div class="thermal-divider" style="border-top: 1px dashed #000; margin: 8px 0;"></div>
+        <table class="thermal-table" style="width: 100%; border-collapse: collapse; font-size: 10px;">
+            <thead>
+                <tr>
+                    <th style="text-align: left; border-bottom: 1px dashed #000; padding: 4px 0;">Item</th>
+                    <th class="num" style="text-align: right; border-bottom: 1px dashed #000; padding: 4px 0; width: 35px;">Qty</th>
+                    <th class="num" style="text-align: right; border-bottom: 1px dashed #000; padding: 4px 0; width: 55px;">Rate</th>
+                    <th class="num" style="text-align: right; border-bottom: 1px dashed #000; padding: 4px 0; width: 65px;">Amt</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rows}
+            </tbody>
+        </table>
+        <div class="thermal-divider" style="border-top: 1px dashed #000; margin: 8px 0;"></div>
+        <div class="thermal-totals" style="display: flex; flex-direction: column; align-items: flex-end; font-size: 10px; gap: 3px;">
+            <div class="thermal-total-line" style="display: flex; justify-content: space-between; width: 100%;"><span>Subtotal:</span><span>₹${subtotal.toFixed(2)}</span></div>
+            ${discountRate > 0 ? `<div class="thermal-total-line" style="display: flex; justify-content: space-between; width: 100%;"><span>Discount (${discountRate}%):</span><span>-₹${discountAmount.toFixed(2)}</span></div>` : ""}
+            ${taxRate > 0 ? `<div class="thermal-total-line" style="display: flex; justify-content: space-between; width: 100%;"><span>Tax (${taxRate}%):</span><span>+₹${taxAmount.toFixed(2)}</span></div>` : ""}
+            <div class="thermal-total-line thermal-total-line--grand" style="display: flex; justify-content: space-between; width: 100%; font-weight: 700; border-top: 1px dashed #000; padding-top: 4px; margin-top: 2px; font-size: 13px;"><span>GRAND TOTAL:</span><span>₹${grandTotal.toFixed(2)}</span></div>
+        </div>
+        <div class="thermal-qr-code" style="text-align: center; margin: 12px 0 6px;">
+            <img src="${qrCodeUrl}" alt="QR Code" style="width: 100px; height: 100px;">
+        </div>
+        <div class="thermal-footer" style="text-align: center; font-size: 9px; margin-top: 8px; color: #555;">
+            Thank you for your visit!<br>
+            Powered by RetailHub POS
+        </div>
+    `;
+}
 
 // --------------------
 // CLOSE MODALS
@@ -2226,7 +2407,7 @@ document.addEventListener("click", (e) => {
 // SAVE PRODUCT
 // --------------------
 
-saveBtn.addEventListener("click", async () => {
+if (saveBtn) saveBtn.addEventListener("click", async () => {
 
     const product = {
 
@@ -2987,66 +3168,271 @@ removeLogoBtn.addEventListener("click", () => {
 
 });
 
-saveProfileBtn.addEventListener("click", async () => {
+if (saveProfileBtn) {
+    saveProfileBtn.addEventListener("click", async () => {
+        const profile = {
+            shopName: document.getElementById("profileShopName")?.value?.trim() || "",
+            ownerName: document.getElementById("profileOwnerName")?.value?.trim() || "",
+            mobile: document.getElementById("profileMobile")?.value?.trim() || "",
+            address: document.getElementById("profileAddress")?.value?.trim() || "",
+            gstNumber: document.getElementById("profileGst")?.value?.trim() || "",
+            email: document.getElementById("profileEmail")?.value?.trim() || "",
+            createdAt: document.getElementById("profileCreatedAt")?.value?.trim() || "",
+            logo: pendingLogoData ?? "",
+            shopImage: pendingBannerData ?? ""
+        };
 
-    const profile = {
-
-        shopName:
-            document.getElementById("profileShopName").value.trim(),
-
-        ownerName:
-            document.getElementById("profileOwnerName").value.trim(),
-
-        mobile:
-            document.getElementById("profileMobile").value.trim(),
-
-        address:
-            document.getElementById("profileAddress").value.trim(),
-
-        gstNumber:
-            document.getElementById("profileGst").value.trim(),
-
-        email:
-            document.getElementById("profileEmail").value.trim(),
-
-        createdAt:
-            document.getElementById("profileCreatedAt").value.trim(),
-
-        logo: pendingLogoData ?? "",
-        shopImage: pendingBannerData ?? ""
-
-    };
-
-    if (!profile.shopName) {
-
-        alert("Please enter a shop name.");
-        return;
-
-    }
-
-    try {
-
-        const result =
-            await window.electronAPI.saveProfile(profile);
-
-        if (!result || !result.success) {
-
-            alert("Profile could not be saved. Please try again.");
+        if (!profile.shopName) {
+            alert("Please enter a shop name.");
             return;
-
         }
 
-        await loadProfile();
-        profileModal.style.display = "none";
+        try {
+            const result = await window.electronAPI.saveProfile(profile);
+            if (!result || !result.success) {
+                alert("Profile could not be saved. Please try again.");
+                return;
+            }
+            await loadProfile();
+            profileModal.style.display = "none";
+        } catch (err) {
+            console.error(err);
+            alert("Could not save profile: " + (err.message || err));
+        }
+    });
+}
 
-    } catch (err) {
+// 1. Save Store Info Button
+const saveStoreBtn = document.getElementById("saveStoreBtn");
+if (saveStoreBtn) {
+    saveStoreBtn.addEventListener("click", async () => {
+        const shopName = document.getElementById("profileShopName").value.trim();
+        const mobile = document.getElementById("profileMobile").value.trim();
+        const email = document.getElementById("profileEmail").value.trim();
+        const gstNumber = document.getElementById("profileGst").value.trim();
+        const createdAt = document.getElementById("profileCreatedAt").value.trim();
+        const address = document.getElementById("profileAddress").value.trim();
 
-        console.error(err);
-        alert("Could not save profile: " + (err.message || err));
+        if (!shopName) {
+            showToast("Please enter a shop name.", "error");
+            return;
+        }
 
-    }
+        try {
+            const currentProfile = await window.electronAPI.getProfile() || {};
+            const profile = {
+                ...currentProfile,
+                shopName: shopName,
+                mobile: mobile,
+                email: email,
+                gstNumber: gstNumber,
+                createdAt: createdAt,
+                address: address,
+                logo: pendingLogoData ?? currentProfile.logo ?? "",
+                shopImage: pendingBannerData ?? currentProfile.banner_image ?? currentProfile.shop_image ?? ""
+            };
 
-});
+            const result = await window.electronAPI.saveProfile(profile);
+            if (!result || !result.success) {
+                showToast("Store profile could not be saved.", "error");
+                return;
+            }
+
+            await loadProfile();
+            showToast("Store information saved successfully!", "success");
+        } catch (err) {
+            console.error(err);
+            showToast("Could not save store profile: " + (err.message || err), "error");
+        }
+    });
+}
+
+// 2. Save Owner Info Button
+const saveOwnerBtn = document.getElementById("saveOwnerBtn");
+if (saveOwnerBtn) {
+    saveOwnerBtn.addEventListener("click", async () => {
+        const ownerName = document.getElementById("profileOwnerName").value.trim();
+        const username = document.getElementById("ownerUsername").value.trim();
+        const currentPassword = document.getElementById("ownerCurrentPassword").value;
+        const newPassword = document.getElementById("ownerNewPassword").value;
+        const confirmPassword = document.getElementById("ownerConfirmPassword").value;
+
+        if (!ownerName) {
+            showToast("Please enter an owner name.", "error");
+            return;
+        }
+
+        try {
+            const currentProfile = await window.electronAPI.getProfile() || {};
+            const profile = {
+                ...currentProfile,
+                ownerName: ownerName
+            };
+
+            const profileResult = await window.electronAPI.saveProfile(profile);
+            if (!profileResult || !profileResult.success) {
+                showToast("Owner profile could not be saved.", "error");
+                return;
+            }
+
+            if (currentPassword || newPassword || username !== "admin") {
+                if (!currentPassword) {
+                    showToast("Current password is required to modify account security credentials.", "error");
+                    return;
+                }
+
+                if (newPassword) {
+                    if (newPassword.length < 4) {
+                        showToast("New password must be at least 4 characters long.", "error");
+                        return;
+                    }
+                    if (newPassword !== confirmPassword) {
+                        showToast("Confirm password does not match new password.", "error");
+                        return;
+                    }
+                }
+
+                const accountResult = await window.electronAPI.updateAccount({
+                    username: username,
+                    currentPassword: currentPassword,
+                    newPassword: newPassword || undefined
+                });
+
+                if (!accountResult || !accountResult.success) {
+                    showToast(accountResult?.error || "Failed to update account security.", "error");
+                    return;
+                }
+
+                document.getElementById("ownerCurrentPassword").value = "";
+                document.getElementById("ownerNewPassword").value = "";
+                document.getElementById("ownerConfirmPassword").value = "";
+            }
+
+            await loadProfile();
+            showToast("Owner information saved successfully!", "success");
+        } catch (err) {
+            console.error(err);
+            showToast("Could not save owner profile: " + (err.message || err), "error");
+        }
+    });
+}
+
+// 3. Database Management Button Handlers
+const vacuumDbBtn = document.getElementById("vacuumDbBtn");
+if (vacuumDbBtn) {
+    vacuumDbBtn.addEventListener("click", async () => {
+        try {
+            vacuumDbBtn.disabled = true;
+            vacuumDbBtn.textContent = "Optimizing...";
+            const res = await window.electronAPI.vacuumDatabase();
+            if (res && res.success) {
+                showToast("Database optimized successfully!", "success");
+            } else {
+                showToast("Optimization failed: " + (res?.error || "Unknown error"), "error");
+            }
+        } catch (err) {
+            showToast("Error optimizing database: " + err.message, "error");
+        } finally {
+            vacuumDbBtn.disabled = false;
+            vacuumDbBtn.textContent = "Optimize Now";
+        }
+    });
+}
+
+const clearLogsDbBtn = document.getElementById("clearLogsDbBtn");
+if (clearLogsDbBtn) {
+    clearLogsDbBtn.addEventListener("click", async () => {
+        const confirmed = await showAppDialog({
+            title: "Clear Logs Confirmation",
+            message: "Are you sure you want to clear all sales and expense transaction logs? This action will keep your products list and shop profile intact, but delete all historical billing records. This is permanent and cannot be undone.",
+            variant: "warning"
+        });
+
+        if (!confirmed) return;
+
+        try {
+            clearLogsDbBtn.disabled = true;
+            clearLogsDbBtn.textContent = "Clearing...";
+            const res = await window.electronAPI.clearLogsDatabase();
+            if (res && res.success) {
+                showToast("Sales and expense transaction logs cleared successfully!", "success");
+                if (typeof loadDashboard === "function") loadDashboard();
+            } else {
+                showToast("Failed to clear logs: " + (res?.error || "Unknown error"), "error");
+            }
+        } catch (err) {
+            showToast("Error clearing logs: " + err.message, "error");
+        } finally {
+            clearLogsDbBtn.disabled = false;
+            clearLogsDbBtn.textContent = "Clear Logs";
+        }
+    });
+}
+
+const factoryResetDbBtn = document.getElementById("factoryResetDbBtn");
+if (factoryResetDbBtn) {
+    factoryResetDbBtn.addEventListener("click", async () => {
+        const confirmed1 = await showAppDialog({
+            title: "CRITICAL: Factory Reset Confirmation",
+            message: "This will completely delete ALL products, sales history, customer databases, supplier logs, expense books, shop profiles, and custom user credentials from this computer. It will restore the software to its original installation state.",
+            variant: "danger"
+        });
+
+        if (!confirmed1) return;
+
+        const confirmed2 = await showAppDialog({
+            title: "FINAL WARNING",
+            message: "This is your LAST warning. ALL data on this RetailHub instance will be deleted permanently. Are you absolutely certain you wish to proceed?",
+            variant: "danger"
+        });
+
+        if (!confirmed2) return;
+
+        try {
+            factoryResetDbBtn.disabled = true;
+            factoryResetDbBtn.textContent = "Wiping Data...";
+            const res = await window.electronAPI.factoryResetDatabase();
+            if (res && res.success) {
+                if (typeof clearAuthUser === "function") clearAuthUser();
+                localStorage.removeItem("amUser");
+                sessionStorage.removeItem("amUser");
+                showToast("System factory reset complete. Reloading...", "success");
+                setTimeout(() => {
+                    if (window.electronAPI && window.electronAPI.navigate) {
+                        window.electronAPI.navigate("login.html");
+                    } else {
+                        window.location.reload();
+                    }
+                }, 2000);
+            } else {
+                showToast("Failed to perform factory reset: " + (res?.error || "Unknown error"), "error");
+                factoryResetDbBtn.disabled = false;
+                factoryResetDbBtn.textContent = "Wipe All Data";
+            }
+        } catch (err) {
+            showToast("Error during factory reset: " + err.message, "error");
+            factoryResetDbBtn.disabled = false;
+            factoryResetDbBtn.textContent = "Wipe All Data";
+        }
+    });
+}
+
+// 4. Theme Selection Handler
+const themeRadioButtons = document.querySelectorAll('input[name="settingsTheme"]');
+if (themeRadioButtons.length > 0) {
+    const activeTheme = localStorage.getItem("theme") || "light";
+    themeRadioButtons.forEach(radio => {
+        if (radio.value === activeTheme) {
+            radio.checked = true;
+        }
+        radio.addEventListener("change", (e) => {
+            const selectedTheme = e.target.value;
+            applyTheme(selectedTheme);
+            localStorage.setItem("theme", selectedTheme);
+            showToast(`Switched to ${selectedTheme} theme!`, "success");
+        });
+    });
+}
 
 
 
@@ -3137,44 +3523,7 @@ searchInput.addEventListener(
    "keyup",
     filterProducts
 ); 
-settingsBtn.addEventListener("click", async () => {
-    if (settingsPanel.style.display === "block") {
-        closeAllViews();
-        setActiveTab("dashboardBtn");
-        return;
-    }
-    
-    closeAllViews();
-    settingsPanel.style.display = "block";
-
-    const pathEl =
-        document.getElementById("settingsDataPath");
-
-    if (
-        pathEl &&
-        window.electronAPI?.getDataFolder
-    ) {
-
-        try {
-
-            const info =
-                await window.electronAPI.getDataFolder();
-
-            if (info?.path) {
-                pathEl.textContent =
-                    "Data folder: " + info.path;
-                pathEl.hidden = false;
-            }
-
-        } catch {
-
-            pathEl.hidden = true;
-
-        }
-
-    }
-    setActiveTab("settingsBtn");
-});
+// settingsBtn click listener removed as it is handled dynamically in DOMContentLoaded
 
 const accountSettingsBtnEl =
     document.getElementById("accountSettingsBtn");
@@ -3850,169 +4199,151 @@ if (window.electronAPI?.onOAuthSetupRequired) {
     });
 }
 
-// OAuth token exchange or network error
-if (window.electronAPI?.onOAuthError) {
-    window.electronAPI.onOAuthError((data) => {
-        showToast("Google sign-in error: " + (data?.message || "Unknown error"), "error");
+    // OAuth token exchange or network error
+    if (window.electronAPI?.onOAuthError) {
+        window.electronAPI.onOAuthError((data) => {
+            showToast("Google sign-in error: " + (data?.message || "Unknown error"), "error");
+            updateCloudStatusUI();
+        });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
         updateCloudStatusUI();
-    });
-}
-
-// Initial status load
-document.addEventListener("DOMContentLoaded", () => {
-    updateCloudStatusUI();
-    initUpdateCenter();
-    
-    // Robust backup close listener for Expense Modal close button
-    const closeExpenseModalBtn = document.getElementById("closeExpenseModal");
-    if (closeExpenseModalBtn) {
-        closeExpenseModalBtn.addEventListener("click", () => {
-            const modal = document.getElementById("expenseModal");
-            if (modal) {
-                modal.style.display = "none";
-                modal.hidden = true;
-            }
-        });
-    }
-    
-    // Active Sidebar Tab Highlighter
-    window.setActiveTab = function(buttonId) {
-        const navButtons = [
-            "dashboardBtn",
-            "sellBtn",
-            "addBtn",
-            "stockBtn",
-            "expensesBtn",
-            "reportsBtn",
-            "settingsBtn"
-        ];
-        navButtons.forEach(id => {
-            const btn = document.getElementById(id);
-            if (btn) {
-                if (id === buttonId) {
-                    btn.classList.add("nav-btn--active");
-                } else {
-                    btn.classList.remove("nav-btn--active");
+        initUpdateCenter();
+        
+        // Robust backup close listener for Expense Modal close button
+        const closeExpenseModalBtn = document.getElementById("closeExpenseModal");
+        if (closeExpenseModalBtn) {
+            closeExpenseModalBtn.addEventListener("click", () => {
+                const modal = document.getElementById("expenseModal");
+                if (modal) {
+                    modal.style.display = "none";
+                    modal.hidden = true;
                 }
-            }
-        });
-    };
+            });
+        }
 
-    // Close all open modals and panels cleanly
-    window.closeAllViews = function() {
-        if (sellModal && sellModal.style.display === "flex") {
-            closeSellModalFn();
-        }
-        if (modal && modal.style.display === "flex") {
-            closeAddProductModal();
-        }
-        if (stockModal && stockModal.style.display === "flex") {
-            closeStockModalFn();
-        }
+        // Active Static Tab tracking
+        let activeStaticTab = "dashboardBtn";
         
-        const otherModals = [
-            editModal,
-            profileModal,
-            reportsModal,
-            priceHistoryModal,
-            billHistoryModal,
-            expenseModal,
-            salesHistoryModal,
-            driveBackupsModal,
-            updateModal
-        ];
-        otherModals.forEach(m => {
-            if (m) {
-                m.style.display = "none";
-                m.hidden = true;
-            }
-        });
-        
-        if (typeof cloudSetupModal !== "undefined" && cloudSetupModal) {
-            cloudSetupModal.style.display = "none";
-        }
-        
-        if (settingsPanel) {
-            settingsPanel.style.display = "none";
-        }
-    };
-
-    // Set initial active tab on page load
-    setActiveTab("dashboardBtn");
-
-    // Dashboard sidebar button binder
-    const dashboardBtn = document.getElementById("dashboardBtn");
-    if (dashboardBtn) {
-        dashboardBtn.addEventListener("click", () => {
-            closeAllViews();
-            setActiveTab("dashboardBtn");
-            showToast("Returned to Dashboard", "success");
-        });
-    }
-    
-    // Global Keyboard Shortcut System Handler
-    window.addEventListener("keydown", async (e) => {
-        // Prevent Ctrl+R / Cmd+R page reloads to protect application state stability
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "r") {
-            e.preventDefault();
-            console.log("Page reload shortcut intercepted & blocked.");
-            return;
-        }
-
-        // Esc = Close Modals Cleanly
-        if (e.key === "Escape") {
-            e.preventDefault();
-            closeAllViews();
-            setActiveTab("dashboardBtn");
-            return;
-        }
-
-        // F1 - F7 modal navigation triggers
-        switch (e.key) {
-            case "F1":
-                e.preventDefault();
-                closeAllViews();
-                setActiveTab("dashboardBtn");
-                showToast("Returned to Dashboard", "success");
-                break;
-            case "F2":
-                e.preventDefault();
-                closeAllViews();
-                await openSellBillModal();
-                setActiveTab("sellBtn");
-                break;
-            case "F3":
-                e.preventDefault();
-                closeAllViews();
-                openAddProductModal();
-                setActiveTab("addBtn");
-                break;
-            case "F4":
-                e.preventDefault();
-                closeAllViews();
-                await populateStockProductSelect();
-                stockModal.style.display = "flex";
-                setTimeout(() => {
-                    const newStockEl = document.getElementById("newStock");
-                    if (newStockEl) {
-                        newStockEl.value = "";
-                        newStockEl.focus();
+        // Active Sidebar Tab Highlighter & View Switcher
+        window.setActiveTab = function(buttonId) {
+            const navButtons = [
+                "dashboardBtn",
+                "inventoryBtn",
+                "salesBtn",
+                "sellBtn",
+                "expensesBtn",
+                "reportsBtn",
+                "customersBtn",
+                "suppliersBtn",
+                "settingsBtn"
+            ];
+            navButtons.forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) {
+                    if (id === buttonId) {
+                        btn.classList.add("nav-btn--active");
+                    } else {
+                        btn.classList.remove("nav-btn--active");
                     }
-                }, 50);
-                setActiveTab("stockBtn");
-                break;
-            case "F5":
-                e.preventDefault();
+                }
+            });
+
+            const staticSections = {
+                "dashboardBtn": "dashboardView",
+                "inventoryBtn": "inventorySection",
+                "salesBtn": "salesSection",
+                "customersBtn": "customersSection",
+                "suppliersBtn": "suppliersSection"
+            };
+
+            if (staticSections[buttonId]) {
+                activeStaticTab = buttonId;
+                Object.keys(staticSections).forEach(btnId => {
+                    const sectId = staticSections[btnId];
+                    const el = document.getElementById(sectId);
+                    if (el) {
+                        el.style.display = (btnId === buttonId) ? "block" : "none";
+                    }
+                });
+            }
+        };
+
+        // Close all open modals and panels cleanly
+        window.closeAllViews = function() {
+            if (sellModal && sellModal.style.display === "flex") {
+                closeSellModalFn();
+            }
+            if (modal && modal.style.display === "flex") {
+                closeAddProductModal();
+            }
+            if (stockModal && stockModal.style.display === "flex") {
+                closeStockModalFn();
+            }
+            
+            const otherModals = [
+                editModal,
+                profileModal,
+                reportsModal,
+                priceHistoryModal,
+                billHistoryModal,
+                expenseModal,
+                salesHistoryModal,
+                driveBackupsModal,
+                updateModal
+            ];
+            otherModals.forEach(m => {
+                if (m) {
+                    m.style.display = "none";
+                    m.hidden = true;
+                }
+            });
+            
+            if (typeof cloudSetupModal !== "undefined" && cloudSetupModal) {
+                cloudSetupModal.style.display = "none";
+            }
+            
+            if (settingsPanel) {
+                settingsPanel.style.display = "none";
+            }
+
+            // Restore sidebar active highlight and correct static view visibility
+            if (activeStaticTab) {
+                window.setActiveTab(activeStaticTab);
+            }
+        };
+
+        // Set initial active tab on page load
+        setActiveTab("dashboardBtn");
+
+        // Sidebar navigation click binders
+        const sidebarBtns = [
+            { id: "dashboardBtn", handler: () => { closeAllViews(); setActiveTab("dashboardBtn"); } },
+            { id: "inventoryBtn", handler: () => { closeAllViews(); setActiveTab("inventoryBtn"); } },
+            { id: "salesBtn", handler: () => { closeAllViews(); setActiveTab("salesBtn"); } },
+            { id: "customersBtn", handler: () => { closeAllViews(); setActiveTab("customersBtn"); } },
+            { id: "suppliersBtn", handler: () => { closeAllViews(); setActiveTab("suppliersBtn"); } },
+            { id: "sellBtn", handler: async () => { closeAllViews(); await openSellBillModal(); setActiveTab("sellBtn"); } },
+            { id: "expensesBtn", handler: async () => {
                 closeAllViews();
                 if (typeof openExpenseModal === "function") {
                     await openExpenseModal();
+                    if (expenseModal) {
+                        expenseModal.hidden = false;
+                        if (!expenseModal.style.display || expenseModal.style.display === "none") {
+                            expenseModal.style.display = "flex";
+                        }
+                    }
                 }
                 setActiveTab("expensesBtn");
-                break;
-            case "F6":
-                e.preventDefault();
+            } },
+            { id: "reportsBtn", handler: async () => {
                 closeAllViews();
-                reportsModal.style.display = "flex";
+                if (reportsModal) {
+                    reportsModal.hidden = false;
+                    reportsModal.style.display = "flex";
+                }
                 const fromEl = document.getElementById("reportFrom");
                 const toEl = document.getElementById("reportTo");
                 if (fromEl && !fromEl.value) {
@@ -4021,13 +4352,19 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (toEl && !toEl.value) {
                     toEl.value = new Date().toISOString().split("T")[0];
                 }
-                await loadReportsAnalytics();
+                if (typeof loadReportsAnalytics === "function") await loadReportsAnalytics();
                 setActiveTab("reportsBtn");
-                break;
-            case "F7":
-                e.preventDefault();
+            } },
+            { id: "settingsBtn", handler: async () => {
+                if (settingsPanel && settingsPanel.style.display === "flex") {
+                    closeAllViews();
+                    return;
+                }
                 closeAllViews();
-                settingsPanel.style.display = "block";
+                if (settingsPanel) {
+                    settingsPanel.hidden = false;
+                    settingsPanel.style.display = "flex";
+                }
                 const pathEl = document.getElementById("settingsDataPath");
                 if (pathEl && window.electronAPI?.getDataFolder) {
                     try {
@@ -4041,121 +4378,796 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
                 }
                 setActiveTab("settingsBtn");
-                break;
+            } }
+        ];
+
+        sidebarBtns.forEach(item => {
+            const btn = document.getElementById(item.id);
+            if (btn) {
+                btn.addEventListener("click", item.handler);
+            }
+        });
+
+        // Bind all Close buttons on overlays
+        const overlayCloseButtons = [
+            "closeSellModal",
+            "closeExpenseModal",
+            "closeReportsModal",
+            "closeSettingsBtn"
+        ];
+        overlayCloseButtons.forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                btn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    closeAllViews();
+                });
+            }
+        });
+
+        // Settings Sub Navigation Switcher
+        const settingsSubTabs = [
+            { btnId: "setNavStore", panelId: "setSubStore" },
+            { btnId: "setNavOwner", panelId: "setSubOwner" },
+            { btnId: "setNavBackup", panelId: "setSubBackup" },
+            { btnId: "setNavDrive", panelId: "setSubDrive" },
+            { btnId: "setNavDB", panelId: "setSubDB" },
+            { btnId: "setNavTheme", panelId: "setSubTheme" },
+            { btnId: "setNavLogout", panelId: "setSubLogout" }
+        ];
+
+        settingsSubTabs.forEach(tab => {
+            const btn = document.getElementById(tab.btnId);
+            if (btn) {
+                btn.addEventListener("click", () => {
+                    settingsSubTabs.forEach(t => {
+                        const b = document.getElementById(t.btnId);
+                        if (b) b.classList.remove("settings-menu-btn--active");
+                        const p = document.getElementById(t.panelId);
+                        if (p) p.style.display = "none";
+                    });
+                    btn.classList.add("settings-menu-btn--active");
+                    const panel = document.getElementById(tab.panelId);
+                    if (panel) {
+                        panel.style.display = (tab.panelId === "setSubStore" || tab.panelId === "setSubOwner") ? "grid" : "block";
+                    }
+                });
+            }
+        });
+
+        // Settings Logout button handler
+        const logoutBtn = document.getElementById("logoutBtn");
+        if (logoutBtn) {
+            logoutBtn.addEventListener("click", () => {
+                if (typeof clearAuthUser === "function") {
+                    clearAuthUser();
+                } else {
+                    localStorage.removeItem("amUser");
+                    sessionStorage.removeItem("amUser");
+                }
+                if (window.electronAPI && window.electronAPI.navigate) {
+                    window.electronAPI.navigate("login.html");
+                } else {
+                    window.location.reload();
+                }
+            });
         }
 
-        // Ctrl + Enter = Complete Bill (when sellModal is active)
-        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-            if (sellModal && sellModal.style.display === "flex") {
-                const billDoneOpen = posBillDone && !posBillDone.hidden;
-                if (!billDoneOpen) {
+        // Inventory View Action Buttons
+        const inventoryAddBtn = document.getElementById("inventoryAddBtn");
+        if (inventoryAddBtn) {
+            inventoryAddBtn.addEventListener("click", () => {
+                if (typeof openAddProductModal === "function") {
+                    openAddProductModal();
+                }
+            });
+        }
+
+        const inventoryStockBtn = document.getElementById("inventoryStockBtn");
+        if (inventoryStockBtn) {
+            inventoryStockBtn.addEventListener("click", async () => {
+                if (typeof populateStockProductSelect === "function") {
+                    await populateStockProductSelect();
+                    if (stockModal) stockModal.style.display = "flex";
+                    setTimeout(() => {
+                        const newStockEl = document.getElementById("newStock");
+                        if (newStockEl) {
+                            newStockEl.value = "";
+                            newStockEl.focus();
+                        }
+                    }, 50);
+                }
+            });
+        }
+
+        // Top Bar Profile Click redirects to settings profile
+        const profileTrigger = document.getElementById("profileSettingsBtnTrigger");
+        if (profileTrigger) {
+            profileTrigger.addEventListener("click", () => {
+                closeAllViews();
+                if (settingsPanel) {
+                    settingsPanel.style.display = "block";
+                }
+                const profileTabBtn = document.getElementById("setNavProfile");
+                if (profileTabBtn) profileTabBtn.click();
+                setActiveTab("settingsBtn");
+            });
+        }
+
+        // Top Bar Quick Product Add Button
+        const quickAddProductBtn = document.getElementById("quickAddProductBtn");
+        if (quickAddProductBtn) {
+            quickAddProductBtn.addEventListener("click", () => {
+                if (typeof openAddProductModal === "function") {
+                    openAddProductModal();
+                }
+            });
+        }
+        
+        // Global Keyboard Shortcut System Handler
+        window.addEventListener("keydown", async (e) => {
+            // Prevent Ctrl+R / Cmd+R page reloads to protect application state stability
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "r") {
+                e.preventDefault();
+                console.log("Page reload shortcut intercepted & blocked.");
+                return;
+            }
+
+            // Esc = Close Modals Cleanly
+            if (e.key === "Escape") {
+                e.preventDefault();
+                closeAllViews();
+                return;
+            }
+
+            // F1 - F7 modal navigation triggers
+            switch (e.key) {
+                case "F1":
                     e.preventDefault();
-                    completeBill();
+                    closeAllViews();
+                    setActiveTab("dashboardBtn");
+                    showToast("Returned to Dashboard", "success");
+                    break;
+                case "F2":
+                    e.preventDefault();
+                    closeAllViews();
+                    openAddProductModal();
+                    setActiveTab("inventoryBtn");
+                    break;
+                case "F3":
+                    e.preventDefault();
+                    closeAllViews();
+                    openAddProductModal();
+                    setActiveTab("inventoryBtn");
+                    break;
+                case "F4":
+                    e.preventDefault();
+                    const custNameInput = document.getElementById("customerName");
+                    if (custNameInput) {
+                        custNameInput.focus();
+                        custNameInput.select();
+                    }
+                    break;
+                case "F5":
+                    e.preventDefault();
+                    closeAllViews();
+                    if (typeof openExpenseModal === "function") {
+                        await openExpenseModal();
+                    }
+                    setActiveTab("expensesBtn");
+                    break;
+                case "F6":
+                    e.preventDefault();
+                    closeAllViews();
+                    if (reportsModal) reportsModal.style.display = "flex";
+                    const fromEl = document.getElementById("reportFrom");
+                    const toEl = document.getElementById("reportTo");
+                    if (fromEl && !fromEl.value) {
+                        fromEl.value = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+                    }
+                    if (toEl && !toEl.value) {
+                        toEl.value = new Date().toISOString().split("T")[0];
+                    }
+                    if (typeof loadReportsAnalytics === "function") await loadReportsAnalytics();
+                    setActiveTab("reportsBtn");
+                    break;
+                case "F7":
+                    e.preventDefault();
+                    closeAllViews();
+                    if (settingsPanel) settingsPanel.style.display = "block";
+                    const pathEl = document.getElementById("settingsDataPath");
+                    if (pathEl && window.electronAPI?.getDataFolder) {
+                        try {
+                            const info = await window.electronAPI.getDataFolder();
+                            if (info?.path) {
+                                pathEl.textContent = "Data folder: " + info.path;
+                                pathEl.hidden = false;
+                            }
+                        } catch {
+                            pathEl.hidden = true;
+                        }
+                    }
+                    setActiveTab("settingsBtn");
+                    break;
+                case "F8":
+                    e.preventDefault();
+                    closeAllViews();
+                    await openSellBillModal();
+                    setActiveTab("sellBtn");
+                    break;
+            }
+
+            // Ctrl + Enter = Complete Bill (when sellModal is active)
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                if (sellModal && sellModal.style.display === "flex") {
+                    const billDoneOpen = posBillDone && !posBillDone.hidden;
+                    if (!billDoneOpen) {
+                        e.preventDefault();
+                        completeBill();
+                        return;
+                    }
+                }
+            }
+
+            // Enter key inside modals/forms
+            if (e.key === "Enter") {
+                const active = document.activeElement;
+                const activeId = active?.id || "";
+
+                if (sellModal && sellModal.style.display === "flex") {
+                    const billDoneOpen = posBillDone && !posBillDone.hidden;
+                    if (billDoneOpen) return;
+
+                    const posSearchResults = document.getElementById("posSearchResults");
+                    const searchResultsOpen = posSearchResults && !posSearchResults.hidden;
+                    if (searchResultsOpen) return; // let suggestions select handle Enter!
+
+                    if (active === sellProductSelect || activeId === "sellQty" || activeId === "actualSellPrice" || active === addToBillBtn || activeId === "posSearchInput" || activeId === "posBarcodeInput") {
+                        e.preventDefault();
+                        addItemToBill();
+                    }
+                    return;
+                }
+
+                if (stockModal && stockModal.style.display === "flex") {
+                    if (activeId === "newStock" || active === updateStockBtn) {
+                        e.preventDefault();
+                        updateStockBtn.click();
+                    }
+                    return;
+                }
+
+                if (modal && modal.style.display === "flex") {
+                    e.preventDefault();
+                    saveBtn.click();
+                    return;
+                }
+
+                if (editModal && editModal.style.display === "flex") {
+                    e.preventDefault();
+                    saveEditBtn.click();
+                    return;
+                }
+
+                if (profileModal && profileModal.style.display === "flex") {
+                    e.preventDefault();
+                    saveProfileBtn.click();
                     return;
                 }
             }
-        }
 
-        // Enter key inside modals/forms
-        if (e.key === "Enter") {
-            const active = document.activeElement;
-            const activeId = active?.id || "";
-
-            if (sellModal && sellModal.style.display === "flex") {
-                const billDoneOpen = posBillDone && !posBillDone.hidden;
-                if (billDoneOpen) return;
-
-                if (active === sellProductSelect || activeId === "sellQty" || activeId === "actualSellPrice" || active === addToBillBtn) {
-                    e.preventDefault();
-                    addItemToBill();
+            // Ctrl + F = Global Search Focus
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+                e.preventDefault();
+                const searchInput = document.getElementById("searchProduct");
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.select();
                 }
                 return;
             }
 
-            if (stockModal && stockModal.style.display === "flex") {
-                if (activeId === "newStock" || active === updateStockBtn) {
-                    e.preventDefault();
-                    updateStockBtn.click();
+            // Ctrl + B = Backup database immediately
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+                e.preventDefault();
+                const cloudSyncNowBtn = document.getElementById("cloudSyncNowBtn");
+                if (cloudSyncNowBtn) {
+                    cloudSyncNowBtn.click();
                 }
                 return;
             }
 
-            if (modal && modal.style.display === "flex") {
-                e.preventDefault();
-                saveBtn.click();
-                return;
-            }
+            // Arrow keys focus movement in forms and modals
+            const focused = document.activeElement;
+            if (focused && (focused.tagName === 'INPUT' || focused.tagName === 'SELECT' || focused.tagName === 'TEXTAREA' || focused.tagName === 'BUTTON')) {
+                const activeModal = Array.from(document.querySelectorAll('.modal')).find(m => m.style.display === 'flex' || m.style.display === 'block');
+                const container = activeModal || document.getElementById("settingsPanel") || document.querySelector('.main') || document;
+                
+                const getFocusableElements = (parent) => {
+                    return Array.from(parent.querySelectorAll(
+                        'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex="0"]'
+                    )).filter(el => {
+                        const style = window.getComputedStyle(el);
+                        return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetWidth > 0;
+                    });
+                };
 
-            if (editModal && editModal.style.display === "flex") {
-                e.preventDefault();
-                saveEditBtn.click();
-                return;
-            }
+                const focusables = getFocusableElements(container);
+                const index = focusables.indexOf(focused);
 
-            if (profileModal && profileModal.style.display === "flex") {
-                e.preventDefault();
-                saveProfileBtn.click();
-                return;
+                if (index !== -1) {
+                    if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+                        e.preventDefault();
+                        const nextIndex = (index + 1) % focusables.length;
+                        focusables[nextIndex].focus();
+                        if (focusables[nextIndex].select) focusables[nextIndex].select();
+                    } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+                        e.preventDefault();
+                        const prevIndex = (index - 1 + focusables.length) % focusables.length;
+                        focusables[prevIndex].focus();
+                        if (focusables[prevIndex].select) focusables[prevIndex].select();
+                    }
+                }
             }
-        }
+        });
 
-        // Ctrl + F = Global Search Focus
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
-            e.preventDefault();
-            const searchInput = document.getElementById("searchProduct");
-            if (searchInput) {
-                searchInput.focus();
-                searchInput.select();
-            }
-            return;
-        }
-
-        // Ctrl + B = Backup database immediately
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
-            e.preventDefault();
-            const cloudSyncNowBtn = document.getElementById("cloudSyncNowBtn");
-            if (cloudSyncNowBtn) {
-                cloudSyncNowBtn.click();
-            }
-            return;
-        }
-
-        // Arrow keys focus movement in forms and modals
-        const focused = document.activeElement;
-        if (focused && (focused.tagName === 'INPUT' || focused.tagName === 'SELECT' || focused.tagName === 'TEXTAREA' || focused.tagName === 'BUTTON')) {
-            const activeModal = Array.from(document.querySelectorAll('.modal')).find(m => m.style.display === 'flex' || m.style.display === 'block');
-            const container = activeModal || document.getElementById("settingsPanel") || document.querySelector('.main') || document;
+        // Realtime Top Bar clock
+        function startTopBarClock() {
+            const timeEl = document.getElementById("topBarTime");
+            const dateEl = document.getElementById("topBarDate");
+            if (!timeEl || !dateEl) return;
             
-            const getFocusableElements = (parent) => {
-                return Array.from(parent.querySelectorAll(
-                    'input:not([type="hidden"]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex="0"]'
-                )).filter(el => {
-                    const style = window.getComputedStyle(el);
-                    return style.display !== 'none' && style.visibility !== 'hidden' && el.offsetWidth > 0;
-                });
+            const updateClock = () => {
+                const now = new Date();
+                timeEl.textContent = now.toLocaleTimeString("en-IN", { hour: '2-digit', minute: '2-digit' });
+                dateEl.textContent = now.toLocaleDateString("en-IN", { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
             };
+            updateClock();
+            setInterval(updateClock, 1000);
+        }
+        startTopBarClock();
 
-            const focusables = getFocusableElements(container);
-            const index = focusables.indexOf(focused);
+        // Global Search routing
+        const globalSearch = document.getElementById("globalSearchInput");
+        if (globalSearch) {
+            globalSearch.addEventListener("keyup", () => {
+                const val = globalSearch.value;
+                const activeBtn = document.querySelector(".nav-btn--active");
+                const activeId = activeBtn ? activeBtn.id : "";
+                
+                if (activeId === "inventoryBtn" || activeId === "dashboardBtn") {
+                    const searchProduct = document.getElementById("searchProduct");
+                    if (searchProduct) {
+                        searchProduct.value = val;
+                        searchProduct.dispatchEvent(new Event('keyup'));
+                    }
+                } else if (activeId === "reportsBtn") {
+                    const reportSearch = document.getElementById("reportSearch");
+                    if (reportSearch) {
+                        reportSearch.value = val;
+                        reportSearch.dispatchEvent(new Event('keyup'));
+                    }
+                } else if (activeId === "customersBtn") {
+                    const searchCustomers = document.getElementById("searchCustomers");
+                    if (searchCustomers) {
+                        searchCustomers.value = val;
+                        searchCustomers.dispatchEvent(new Event('keyup'));
+                    }
+                }
+            });
+        }
 
-            if (index !== -1) {
-                if (e.key === "ArrowDown" || e.key === "ArrowRight") {
-                    e.preventDefault();
-                    const nextIndex = (index + 1) % focusables.length;
-                    focusables[nextIndex].focus();
-                    if (focusables[nextIndex].select) focusables[nextIndex].select();
-                } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
-                    e.preventDefault();
-                    const prevIndex = (index - 1 + focusables.length) % focusables.length;
-                    focusables[prevIndex].focus();
-                    if (focusables[prevIndex].select) focusables[prevIndex].select();
+        // Customer tab rendering logic
+        async function renderCustomersTab() {
+            const customersBody = document.getElementById("customersBody");
+            if (!customersBody) return;
+            
+            try {
+                const sales = await window.electronAPI.getSales();
+                if (!sales || !sales.length) {
+                    customersBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 24px; color: var(--text-muted);">No customer records found</td></tr>`;
+                    return;
+                }
+                
+                const customerMap = {};
+                sales.forEach(sale => {
+                    const name = sale.customer_name || "Walk-in Customer";
+                    const mobile = sale.customer_mobile || "—";
+                    const key = `${name}_${mobile}`;
+                    
+                    if (!customerMap[key]) {
+                        customerMap[key] = {
+                            name: name,
+                            mobile: mobile,
+                            invoices: new Set(),
+                            revenue: 0,
+                            paymentModes: new Set()
+                        };
+                    }
+                    
+                    if (sale.bill_id) {
+                        customerMap[key].invoices.add(sale.bill_id);
+                    }
+                    customerMap[key].revenue += Number(sale.total_sale || 0);
+                    if (sale.payment_mode) {
+                        customerMap[key].paymentModes.add(sale.payment_mode);
+                    }
+                });
+                
+                const customerList = Object.values(customerMap);
+                customerList.sort((a, b) => b.revenue - a.revenue);
+                
+                if (!customerList.length) {
+                    customersBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 24px; color: var(--text-muted);">No customer records found</td></tr>`;
+                    return;
+                }
+                
+                customersBody.innerHTML = customerList.map(c => {
+                    const paymentModesStr = Array.from(c.paymentModes).join(", ") || "—";
+                    return `
+                        <tr>
+                            <td><strong>${c.name}</strong></td>
+                            <td>${c.mobile}</td>
+                            <td>${c.invoices.size} invoices</td>
+                            <td><strong>₹${c.revenue.toFixed(2)}</strong></td>
+                            <td>${paymentModesStr}</td>
+                        </tr>
+                    `;
+                }).join("");
+                
+            } catch (err) {
+                console.error("Failed to load customer registry:", err);
+                customersBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 24px; color: var(--text-danger);">Error loading customer records</td></tr>`;
+            }
+        }
+
+        const searchCustomersInput = document.getElementById("searchCustomers");
+        if (searchCustomersInput) {
+            searchCustomersInput.addEventListener("keyup", () => {
+                const query = searchCustomersInput.value.toLowerCase().trim();
+                const rows = document.querySelectorAll("#customersBody tr");
+                rows.forEach(row => {
+                    const text = row.textContent.toLowerCase();
+                    row.style.display = text.includes(query) ? "" : "none";
+                });
+            });
+        }
+
+        // Override loadSales to also render the Dashboard's Recent Transactions
+        const originalLoadSales = window.loadSales;
+        window.loadSales = async function() {
+            if (originalLoadSales) await originalLoadSales();
+            
+            try {
+                const sales = await window.electronAPI.getSales();
+                const dashboardTable = document.getElementById("dashboardRecentSalesBody");
+                
+                if (dashboardTable && sales) {
+                    dashboardTable.innerHTML = "";
+                    const recentSales = sales.slice(0, 5); // Take 5 most recent
+                    
+                    if (recentSales.length === 0) {
+                        dashboardTable.innerHTML = `<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">No transactions recorded today</td></tr>`;
+                        return;
+                    }
+                    
+                    recentSales.forEach(sale => {
+                        dashboardTable.innerHTML += `
+                            <tr>
+                                <td><strong>${sale.product_name}</strong></td>
+                                <td>${sale.qty}</td>
+                                <td>₹${sale.total_sale}</td>
+                                <td>₹${sale.profit}</td>
+                                <td>${sale.bill_id ? `<span class="bill-tag">${formatBillId(sale.bill_id)}</span>` : "—"}</td>
+                                <td>${paymentBadge(sale.payment_mode)}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (e) {
+                console.error("Error populating recent transactions:", e);
+            }
+        };
+        
+        // Initial triggering
+        setTimeout(() => {
+            window.loadSales();
+        }, 1500);
+
+        // POS Stepper Buttons
+        const posQtyDec = document.getElementById("posQtyDec");
+        const posQtyInc = document.getElementById("posQtyInc");
+        const sellQtyInput = document.getElementById("sellQty");
+        
+        if (posQtyDec && sellQtyInput) {
+            posQtyDec.addEventListener("click", () => {
+                let val = parseInt(sellQtyInput.value) || 1;
+                if (val > 1) {
+                    sellQtyInput.value = val - 1;
+                }
+            });
+        }
+        if (posQtyInc && sellQtyInput) {
+            posQtyInc.addEventListener("click", () => {
+                let val = parseInt(sellQtyInput.value) || 1;
+                sellQtyInput.value = val + 1;
+            });
+        }
+
+        // Live Calculations on Discount & Tax & Cash Received
+        const discountRateInput = document.getElementById("discountRate");
+        const taxRateInput = document.getElementById("taxRate");
+        const cashReceivedInput = document.getElementById("cashReceived");
+
+        if (discountRateInput) {
+            discountRateInput.addEventListener("input", updateBillTotals);
+            discountRateInput.addEventListener("change", updateBillTotals);
+        }
+        if (taxRateInput) {
+            taxRateInput.addEventListener("input", updateBillTotals);
+            taxRateInput.addEventListener("change", updateBillTotals);
+        }
+        if (cashReceivedInput) {
+            cashReceivedInput.addEventListener("input", calculateBalanceReturn);
+        }
+
+        // Save Draft Button
+        const saveDraftBtn = document.getElementById("saveDraftBtn");
+        if (saveDraftBtn) {
+            saveDraftBtn.addEventListener("click", () => {
+                if (sellCart.length === 0) {
+                    showToast("Cannot save draft on empty cart.", "warn");
+                    return;
+                }
+                const draft = {
+                    cart: sellCart,
+                    customerName: document.getElementById("customerName").value,
+                    customerMobile: document.getElementById("customerMobile").value,
+                    discountRate: document.getElementById("discountRate").value,
+                    taxRate: document.getElementById("taxRate").value,
+                    paymentMode: document.getElementById("paymentMode").value,
+                    cashReceived: document.getElementById("cashReceived").value
+                };
+                localStorage.setItem("amDraftBill", JSON.stringify(draft));
+                showToast("Draft bill saved successfully!", "success");
+            });
+        }
+
+        // Check for draft in openSellBillModal context
+        const originalOpenSellBillModal = window.openSellBillModal;
+        window.openSellBillModal = async function() {
+            if (originalOpenSellBillModal) {
+                await originalOpenSellBillModal();
+            }
+            const savedDraft = localStorage.getItem("amDraftBill");
+            if (savedDraft) {
+                try {
+                    const draft = JSON.parse(savedDraft);
+                    sellCart = draft.cart || [];
+                    document.getElementById("customerName").value = draft.customerName || "";
+                    document.getElementById("customerMobile").value = draft.customerMobile || "";
+                    document.getElementById("discountRate").value = draft.discountRate || "0";
+                    document.getElementById("taxRate").value = draft.taxRate || "0";
+                    document.getElementById("paymentMode").value = draft.paymentMode || "Cash";
+                    document.getElementById("cashReceived").value = draft.cashReceived || "";
+                    renderBillCart();
+                    localStorage.removeItem("amDraftBill"); // clear after restore
+                    showToast("Draft bill restored successfully!", "success");
+                } catch (e) {
+                    console.error("Failed to restore draft:", e);
                 }
             }
+        };
+
+        // Preview Invoice Button (Draft Preview)
+        const previewInvoiceBtn = document.getElementById("previewInvoiceBtn");
+        if (previewInvoiceBtn) {
+            previewInvoiceBtn.addEventListener("click", () => {
+                if (sellCart.length === 0) {
+                    showToast("Add items to cart to preview receipt.", "warn");
+                    return;
+                }
+                const subtotal = sellCart.reduce((sum, item) => sum + item.lineTotal, 0);
+                const discountRate = parseFloat(document.getElementById("discountRate").value) || 0;
+                const taxRate = parseFloat(document.getElementById("taxRate").value) || 0;
+                const draftData = {
+                    profile: getShopProfileFromDOM(),
+                    lines: sellCart.map(item => ({
+                        product_name: item.productName,
+                        qty: item.qty,
+                        sell_price: item.sellPrice,
+                        total_sale: item.lineTotal
+                    })),
+                    billId: null,
+                    totalSale: subtotal,
+                    paymentMode: document.getElementById("paymentMode").value,
+                    customerName: document.getElementById("customerName").value.trim(),
+                    customerMobile: document.getElementById("customerMobile").value.trim(),
+                    tax: taxRate,
+                    discount: discountRate,
+                    date: new Date().toLocaleString()
+                };
+                openInvoicePreview(null, true, draftData);
+            });
+        }
+
+        // Invoice Preview Modal Actions (Print, PDF, Share, Cancel)
+        const previewPrintBtn = document.getElementById("previewPrintBtn");
+        const previewPdfBtn = document.getElementById("previewPdfBtn");
+        const previewShareBtn = document.getElementById("previewShareBtn");
+        const previewCancelBtn = document.getElementById("previewCancelBtn");
+        const closeInvoicePreviewModal = document.getElementById("closeInvoicePreviewModal");
+        const invoicePreviewModal = document.getElementById("invoicePreviewModal");
+
+        if (previewPrintBtn) {
+            previewPrintBtn.addEventListener("click", async () => {
+                if (!currentPreviewBillId) {
+                    showToast("No active bill to print. Complete sale first.", "warn");
+                    return;
+                }
+                await window.printBillById(currentPreviewBillId);
+            });
+        }
+        if (previewPdfBtn) {
+            previewPdfBtn.addEventListener("click", async () => {
+                if (!currentPreviewBillId) {
+                    showToast("No active bill to download. Complete sale first.", "warn");
+                    return;
+                }
+                await window.exportBillPdfById(currentPreviewBillId);
+            });
+        }
+        if (previewShareBtn) {
+            previewShareBtn.addEventListener("click", async () => {
+                if (!currentPreviewBillId) {
+                    showToast("No active bill to share. Complete sale first.", "warn");
+                    return;
+                }
+                await window.exportBillPdfById(currentPreviewBillId);
+            });
+        }
+        const closePreview = () => {
+            if (invoicePreviewModal) {
+                invoicePreviewModal.style.display = "none";
+            }
+        };
+        if (previewCancelBtn) previewCancelBtn.addEventListener("click", closePreview);
+        if (closeInvoicePreviewModal) closeInvoicePreviewModal.addEventListener("click", closePreview);
+
+        // Product Autocomplete Suggestions logic
+        const posSearchInput = document.getElementById("posSearchInput");
+        const posSearchResults = document.getElementById("posSearchResults");
+        let selectedSearchIndex = -1;
+
+        if (posSearchInput && posSearchResults) {
+            posSearchInput.addEventListener("input", () => {
+                const query = posSearchInput.value.toLowerCase().trim();
+                if (!query) {
+                    posSearchResults.hidden = true;
+                    return;
+                }
+                const matches = sellProductsCache.filter(p => 
+                    p.name.toLowerCase().includes(query) || 
+                    (p.category && p.category.toLowerCase().includes(query))
+                );
+                if (matches.length === 0) {
+                    posSearchResults.innerHTML = `<li class="pos-search-item text-muted" style="padding: 8px 12px; font-size: 11px;">No matches</li>`;
+                    posSearchResults.hidden = false;
+                    selectedSearchIndex = -1;
+                    return;
+                }
+                selectedSearchIndex = 0;
+                posSearchResults.innerHTML = matches.map((p, idx) => `
+                    <li class="pos-search-item ${idx === 0 ? 'is-selected' : ''}" data-id="${p.id}" style="padding: 8px 12px; cursor: pointer; display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-light); font-size: 11px;">
+                        <span><strong>${p.name}</strong></span>
+                        <span style="color: var(--text-muted);">₹${p.sell_price} | Stock: ${p.stock}</span>
+                    </li>
+                `).join("");
+                posSearchResults.hidden = false;
+            });
+
+            posSearchInput.addEventListener("keydown", (e) => {
+                const items = posSearchResults.querySelectorAll(".pos-search-item");
+                if (posSearchResults.hidden || items.length === 0) return;
+
+                if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    items[selectedSearchIndex]?.classList.remove("is-selected");
+                    selectedSearchIndex = (selectedSearchIndex + 1) % items.length;
+                    items[selectedSearchIndex].classList.add("is-selected");
+                    items[selectedSearchIndex].scrollIntoView({ block: "nearest" });
+                } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    items[selectedSearchIndex]?.classList.remove("is-selected");
+                    selectedSearchIndex = (selectedSearchIndex - 1 + items.length) % items.length;
+                    items[selectedSearchIndex].classList.add("is-selected");
+                    items[selectedSearchIndex].scrollIntoView({ block: "nearest" });
+                } else if (e.key === "Enter") {
+                    e.preventDefault();
+                    const selected = items[selectedSearchIndex];
+                    if (selected && selected.dataset.id) {
+                        selectProductFromSearch(selected.dataset.id);
+                    }
+                } else if (e.key === "Escape") {
+                    posSearchResults.hidden = true;
+                }
+            });
+
+            // Delegate click for suggestion list
+            posSearchResults.addEventListener("click", (e) => {
+                const item = e.target.closest(".pos-search-item");
+                if (item && item.dataset.id) {
+                    selectProductFromSearch(item.dataset.id);
+                }
+            });
+        }
+
+        // Global click to hide suggestions
+        document.addEventListener("click", (e) => {
+            if (posSearchResults && !e.target.closest(".pos-search-wrapper")) {
+                posSearchResults.hidden = true;
+            }
+        });
+
+        function selectProductFromSearch(id) {
+            if (sellProductSelect) {
+                sellProductSelect.value = id;
+                sellProductSelect.dispatchEvent(new Event("change"));
+            }
+            if (posSearchInput) {
+                const prod = sellProductsCache.find(p => p.id == id);
+                posSearchInput.value = prod ? prod.name : "";
+            }
+            if (posSearchResults) {
+                posSearchResults.hidden = true;
+            }
+            // Focus unit price field
+            const qtyField = document.getElementById("sellQty");
+            if (qtyField) {
+                qtyField.focus();
+                qtyField.select();
+            }
+        }
+
+        // Barcode scanner logic
+        const posBarcodeInput = document.getElementById("posBarcodeInput");
+        if (posBarcodeInput) {
+            posBarcodeInput.addEventListener("keydown", (e) => {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    const code = posBarcodeInput.value.trim();
+                    if (!code) return;
+
+                    // Match product by ID or name
+                    let matchedProduct = null;
+                    if (/^\d+$/.test(code)) {
+                        const id = parseInt(code);
+                        matchedProduct = sellProductsCache.find(p => p.id === id);
+                    }
+                    if (!matchedProduct) {
+                        matchedProduct = sellProductsCache.find(p => p.name.toLowerCase() === code.toLowerCase());
+                    }
+                    if (!matchedProduct) {
+                        matchedProduct = sellProductsCache.find(p => p.category && p.category.toLowerCase() === code.toLowerCase());
+                    }
+
+                    if (matchedProduct) {
+                        sellProductSelect.value = matchedProduct.id;
+                        sellProductSelect.dispatchEvent(new Event("change"));
+                        if (sellQtyInput) sellQtyInput.value = "1";
+                        addItemToBill();
+                        posBarcodeInput.value = "";
+                        posBarcodeInput.focus();
+                    } else {
+                        showToast(`No product found for code: "${code}"`, "warn");
+                        posBarcodeInput.select();
+                    }
+                }
+            });
         }
     });
-});
 
-// Also trigger on initApp
-setTimeout(() => {
-    updateCloudStatusUI();
-}, 1000);
+    // Also trigger on initApp
+    setTimeout(() => {
+        updateCloudStatusUI();
+    }, 1000);

@@ -68,6 +68,15 @@ restoreDatabase: () =>
     updateAccount: (data) =>
         ipcRenderer.invoke("update-account", data),
 
+    vacuumDatabase: () =>
+        ipcRenderer.invoke("database-vacuum"),
+
+    clearLogsDatabase: () =>
+        ipcRenderer.invoke("database-clear-logs"),
+
+    factoryResetDatabase: () =>
+        ipcRenderer.invoke("database-factory-reset"),
+
     getAnalytics: () =>
         ipcRenderer.invoke("get-analytics"),
 

@@ -210,6 +210,18 @@ function migrateSalesColumns(database, done) {
                 );
             }
 
+            if (!names.includes("tax")) {
+                pending.push(
+                    "ALTER TABLE sales ADD COLUMN tax REAL DEFAULT 0"
+                );
+            }
+
+            if (!names.includes("discount")) {
+                pending.push(
+                    "ALTER TABLE sales ADD COLUMN discount REAL DEFAULT 0"
+                );
+            }
+
             if (!pending.length) {
                 if (done) {
                     done();

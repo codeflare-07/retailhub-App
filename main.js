@@ -347,14 +347,34 @@ function buildBillPrintHtml(data) {
     const billLabel =
         billId ? (String(billId).startsWith("RH-") ? String(billId) : `#${String(billId).slice(-6)}`) : "—";
 
-    const rows = lines.map((line) => `
-        <tr>
-            <td>${line.product_name}</td>
-            <td class="num">${line.qty}</td>
-            <td class="num">₹${line.sell_price}</td>
-            <td class="num">₹${line.total_sale}</td>
-        </tr>
-    `).join("");
+    const discountRate = Number(data.discount) || 0;
+    const taxRate = Number(data.tax) || 0;
+    const factor = (1 - discountRate / 100) * (1 + taxRate / 100);
+    const safeFactor = factor > 0 ? factor : 1;
+
+    let subtotal = 0;
+    const rows = lines.map((line) => {
+        const netPrice = Number(line.sell_price) || 0;
+        const basePrice = netPrice / safeFactor;
+        const baseAmount = basePrice * (Number(line.qty) || 0);
+        subtotal += baseAmount;
+        return `
+            <tr>
+                <td>${line.product_name}</td>
+                <td class="num">${line.qty}</td>
+                <td class="num">₹${basePrice.toFixed(2)}</td>
+                <td class="num">₹${baseAmount.toFixed(2)}</td>
+            </tr>
+        `;
+    }).join("");
+
+    const discountAmount = subtotal * (discountRate / 100);
+    const taxableAmount = subtotal - discountAmount;
+    const taxAmount = taxableAmount * (taxRate / 100);
+    const grandTotal = taxableAmount + taxAmount;
+
+    const qrData = `Bill ID: ${billLabel}\nTotal: ₹${grandTotal.toFixed(2)}\nShop: ${profile.shop_name || "RetailHub"}`;
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(qrData)}`;
 
     return `<!DOCTYPE html>
 <html>
@@ -362,36 +382,115 @@ function buildBillPrintHtml(data) {
 <meta charset="UTF-8">
 <title>Bill ${billLabel}</title>
 <style>
-body{font-family:Segoe UI,Arial,sans-serif;padding:24px;color:#111;max-width:800px;margin:0 auto}
-.head{text-align:center;border-bottom:2px solid #333;padding-bottom:12px;margin-bottom:16px}
-.head h1{margin:0;font-size:22px}
-.head p{margin:4px 0;font-size:13px;color:#444}
-.meta{display:flex;justify-content:space-between;margin-bottom:16px;font-size:13px}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{border:1px solid #ccc;padding:8px;text-align:left}
-th{background:#f3f4f6}
-.num{text-align:right}
-.total{margin-top:16px;text-align:right;font-size:16px}
-.total strong{font-size:20px}
-.footer{margin-top:24px;text-align:center;font-size:12px;color:#666}
+@page { size: auto; margin: 0mm; }
+body {
+    font-family: 'Courier New', Courier, monospace;
+    width: 80mm;
+    margin: 0 auto;
+    padding: 6mm;
+    color: #000;
+    background: #fff;
+    font-size: 11px;
+    line-height: 1.4;
+}
+.center { text-align: center; }
+.right { text-align: right; }
+.logo-wrap { text-align: center; margin-bottom: 6px; }
+.logo { max-width: 50px; max-height: 50px; object-fit: contain; }
+.shop-name { font-size: 14px; font-weight: bold; text-transform: uppercase; margin: 2px 0; }
+.shop-details { font-size: 10px; margin-bottom: 8px; }
+.divider { border-top: 1px dashed #000; margin: 8px 0; }
+.meta-table { width: 100%; margin-bottom: 6px; font-size: 10px; }
+.meta-table td { padding: 1px 0; }
+.item-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+.item-table th, .item-table td { padding: 4px 0; font-size: 10px; text-align: left; }
+.item-table th { font-weight: bold; border-bottom: 1px dashed #000; }
+.item-table td { border-bottom: 1px dotted #ccc; }
+.item-table .num { text-align: right; }
+.totals-wrap { width: 100%; font-size: 10px; margin-bottom: 8px; }
+.totals-wrap td { padding: 2px 0; }
+.totals-wrap .grand-total { font-size: 13px; font-weight: bold; border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 0; }
+.qr-wrap { text-align: center; margin: 12px 0 6px; }
+.qr-wrap img { width: 90px; height: 90px; }
+.footer { font-size: 9px; text-align: center; margin-top: 8px; }
 </style>
 </head>
 <body>
-<div class="head">
-<h1>${profile?.shop_name || "My Shop"}</h1>
-<p>${profile?.address || "-"}</p>
-<p>${(profile?.mobile && profile?.mobile !== "-") ? "Mob: " + profile.mobile : ""}${(profile?.gst_number && profile?.gst_number !== "-") ? " · GST: " + profile.gst_number : ""}</p>
+<div class="logo-wrap">
+    ${profile.logo ? `<img src="${profile.logo}" class="logo" alt="logo">` : ""}
+    <div class="shop-name">${profile.shop_name || "RETAIL HUB"}</div>
+    <div class="shop-details">
+        ${profile.address && profile.address !== "-" ? `<div>${profile.address}</div>` : ""}
+        ${profile.mobile && profile.mobile !== "-" ? `<div>Mob: ${profile.mobile}</div>` : ""}
+        ${profile.email && profile.email !== "-" ? `<div>Email: ${profile.email}</div>` : ""}
+        ${profile.gst_number && profile.gst_number !== "-" ? `<div>GSTIN: ${profile.gst_number}</div>` : ""}
+    </div>
 </div>
-<div class="meta">
-<div><strong>Bill:</strong> ${billLabel}<br><strong>Date:</strong> ${data.date || ""}</div>
-<div><strong>Customer:</strong> ${data.customerName || "—"}<br><strong>Mobile:</strong> ${data.customerMobile || "—"}<br><strong>Payment:</strong> ${data.paymentMode || "—"}</div>
-</div>
-<table>
-<thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
-<tbody>${rows}</tbody>
+
+<div class="divider"></div>
+
+<table class="meta-table">
+    <tr>
+        <td><strong>Bill ID:</strong> ${billLabel}</td>
+        <td class="right"><strong>Date:</strong> ${data.date || ""}</td>
+    </tr>
+    <tr>
+        <td><strong>Cust:</strong> ${data.customerName || "Walk-in Customer"}</td>
+        <td class="right"><strong>Mob:</strong> ${data.customerMobile || "—"}</td>
+    </tr>
+    <tr>
+        <td><strong>Payment:</strong> ${data.paymentMode || "Cash"}</td>
+        <td></td>
+    </tr>
 </table>
-<div class="total">Total: <strong>₹${data.totalSale || 0}</strong></div>
-<div class="footer">Thank you for your business</div>
+
+<div class="divider"></div>
+
+<table class="item-table">
+    <thead>
+        <tr>
+            <th>Item Description</th>
+            <th class="num">Qty</th>
+            <th class="num">Rate</th>
+            <th class="num">Amt</th>
+        </tr>
+    </thead>
+    <tbody>
+        ${rows}
+    </tbody>
+</table>
+
+<table class="totals-wrap">
+    <tr>
+        <td>Subtotal</td>
+        <td class="right">₹${subtotal.toFixed(2)}</td>
+    </tr>
+    ${discountRate > 0 ? `
+    <tr>
+        <td>Discount (${discountRate}%)</td>
+        <td class="right">-₹${discountAmount.toFixed(2)}</td>
+    </tr>
+    ` : ""}
+    ${taxRate > 0 ? `
+    <tr>
+        <td>Tax (${taxRate}%)</td>
+        <td class="right">+₹${taxAmount.toFixed(2)}</td>
+    </tr>
+    ` : ""}
+    <tr class="grand-total">
+        <td>GRAND TOTAL</td>
+        <td class="right">₹${grandTotal.toFixed(2)}</td>
+    </tr>
+</table>
+
+<div class="qr-wrap">
+    <img src="${qrCodeUrl}" alt="QR Code">
+</div>
+
+<div class="footer">
+    Thank you for your visit!<br>
+    Powered by RetailHub POS
+</div>
 </body>
 </html>`;
 
@@ -825,9 +924,11 @@ ipcMain.handle("sell-bill", async (event, bill) => {
                                                 payment_mode,
                                                 bill_id,
                                                 customer_name,
-                                                customer_mobile
+                                                customer_mobile,
+                                                tax,
+                                                discount
                                             )
-                                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                                             `,
                                             [
                                                 product.id,
@@ -840,7 +941,9 @@ ipcMain.handle("sell-bill", async (event, bill) => {
                                                 bill.paymentMode,
                                                 billId,
                                                 bill.customerName || "",
-                                                bill.customerMobile || ""
+                                                bill.customerMobile || "",
+                                                bill.tax || 0,
+                                                bill.discount || 0
                                             ],
                                             (insertErr) => {
 
@@ -1692,6 +1795,32 @@ ipcMain.handle("export-sales-excel", async (event, range) => {
 
 });
 
+function formatUtcToLocal(utcStr) {
+    if (!utcStr) return "";
+    try {
+        const str = String(utcStr);
+        let isoStr = str;
+        if (!str.includes("Z") && !str.includes("+")) {
+            isoStr = str.replace(" ", "T") + "Z";
+        }
+        const date = new Date(isoStr);
+        if (isNaN(date.getTime())) {
+            return str;
+        }
+        const pad = (n) => String(n).padStart(2, "0");
+        const yyyy = date.getFullYear();
+        const mm = pad(date.getMonth() + 1);
+        const dd = pad(date.getDate());
+        const hh = pad(date.getHours());
+        const min = pad(date.getMinutes());
+        const ss = pad(date.getSeconds());
+        return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+    } catch (e) {
+        console.error("Error formatting date:", e);
+        return String(utcStr);
+    }
+}
+
 function fetchBillDetails(billId) {
 
     return new Promise((resolve, reject) => {
@@ -1737,7 +1866,9 @@ function fetchBillDetails(billId) {
                             paymentMode: first.payment_mode,
                             customerName: first.customer_name,
                             customerMobile: first.customer_mobile,
-                            date: first.sale_date
+                            tax: first.tax || 0,
+                            discount: first.discount || 0,
+                            date: formatUtcToLocal(first.sale_date)
                         });
 
                     }
@@ -2332,6 +2463,62 @@ ipcMain.handle("save-profile", async (event, profile) => {
 
     });
 
+});
+
+ipcMain.handle("database-vacuum", async () => {
+    await waitForDatabase();
+    return new Promise((resolve, reject) => {
+        db.run("VACUUM", [], (err) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve({ success: true });
+            }
+        });
+    });
+});
+
+ipcMain.handle("database-clear-logs", async () => {
+    await waitForDatabase();
+    return new Promise((resolve, reject) => {
+        db.serialize(() => {
+            db.run("DELETE FROM sales");
+            db.run("DELETE FROM expenses");
+            db.run("VACUUM", [], (err) => {
+                if (err) reject(err);
+                else resolve({ success: true });
+            });
+        });
+    });
+});
+
+ipcMain.handle("database-factory-reset", async () => {
+    await waitForDatabase();
+    return new Promise((resolve, reject) => {
+        db.serialize(() => {
+            db.run("DELETE FROM sales");
+            db.run("DELETE FROM expenses");
+            db.run("DELETE FROM products");
+            db.run("DELETE FROM price_history");
+            db.run("DELETE FROM users");
+            db.run("DELETE FROM shop_profile");
+            db.run("DELETE FROM sqlite_sequence");
+            db.run(`
+                INSERT OR IGNORE INTO shop_profile
+                (id, shop_name, owner_name, mobile, address, gst_number, logo, shop_image, email, created_at)
+                VALUES (1, 'My Shop', 'Owner', '-', '-', '-', '', '', '-', '2026-05-27')
+            `);
+            const { seedDefaultUser } = require("./auth");
+            seedDefaultUser(db)
+                .then(() => {
+                    db.run("VACUUM", [], (err) => {
+                        if (err) reject(err);
+                        else resolve({ success: true });
+                    });
+                })
+                .catch(reject);
+        });
+    });
 });
 
 ipcMain.handle(
