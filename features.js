@@ -1377,6 +1377,8 @@ async function openBillHistoryModal() {
                         <td>${bill.payment_mode || "—"}</td>
                         <td class="bill-actions">
                             <button type="button" class="btn btn--ghost btn--sm"
+                                onclick="previewBillById('${id}')">Preview</button>
+                            <button type="button" class="btn btn--ghost btn--sm"
                                 onclick="printBillById('${id}')">Print</button>
                             <button type="button" class="btn btn--secondary btn--sm"
                                 onclick="exportBillPdfById('${id}')">PDF</button>
@@ -1512,6 +1514,35 @@ function bindFeatureEvents() {
 }
 
 
+
+window.previewBillById = async function (billId) {
+
+    if (!billId) {
+        return;
+    }
+
+    try {
+
+        const result =
+            await window.electronAPI.previewBill(billId);
+
+        if (
+            result &&
+            !result.success &&
+            typeof showToast === "function"
+        ) {
+            showToast(result.error || "Preview failed.", "error");
+        }
+
+    } catch (err) {
+
+        if (typeof showToast === "function") {
+            showToast(err.message || "Preview failed.", "error");
+        }
+
+    }
+
+};
 
 window.printBillById = async function (billId) {
 

@@ -356,6 +356,47 @@ function buildBillPrintHtml(data) {
         </tr>
     `).join("");
 
+    let formattedDate = "";
+    if (data.date) {
+        const utcDateStr = (data.date.includes("Z") || data.date.includes("T")) 
+            ? data.date 
+            : data.date + " UTC";
+        const d = new Date(utcDateStr);
+        if (!isNaN(d.getTime())) {
+            formattedDate = d.toLocaleString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: true
+            });
+        } else {
+            formattedDate = data.date;
+        }
+    } else {
+        formattedDate = new Date().toLocaleString("en-IN", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: true
+        });
+    }
+
+    const printTimeStr = new Date().toLocaleString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true
+    });
+
     return `<!DOCTYPE html>
 <html>
 <head>
@@ -373,7 +414,7 @@ th{background:#f3f4f6}
 .num{text-align:right}
 .total{margin-top:16px;text-align:right;font-size:16px}
 .total strong{font-size:20px}
-.footer{margin-top:24px;text-align:center;font-size:12px;color:#666}
+.footer{margin-top:24px;text-align:center;font-size:12px;color:#666;line-height:1.5}
 </style>
 </head>
 <body>
@@ -383,7 +424,7 @@ th{background:#f3f4f6}
 <p>${(profile?.mobile && profile?.mobile !== "-") ? "Mob: " + profile.mobile : ""}${(profile?.gst_number && profile?.gst_number !== "-") ? " · GST: " + profile.gst_number : ""}</p>
 </div>
 <div class="meta">
-<div><strong>Bill:</strong> ${billLabel}<br><strong>Date:</strong> ${data.date || ""}</div>
+<div><strong>Bill:</strong> ${billLabel}<br><strong>Date:</strong> ${formattedDate}</div>
 <div><strong>Customer:</strong> ${data.customerName || "—"}<br><strong>Mobile:</strong> ${data.customerMobile || "—"}<br><strong>Payment:</strong> ${data.paymentMode || "—"}</div>
 </div>
 <table>
@@ -391,7 +432,7 @@ th{background:#f3f4f6}
 <tbody>${rows}</tbody>
 </table>
 <div class="total">Total: <strong>₹${data.totalSale || 0}</strong></div>
-<div class="footer">Thank you for your business</div>
+<div class="footer">Thank you for your business<br><small style="color: #888; font-size: 10px;">Printed on: ${printTimeStr}</small></div>
 </body>
 </html>`;
 
@@ -1692,6 +1733,83 @@ ipcMain.handle("export-sales-excel", async (event, range) => {
 
 });
 
+ipcMain.handle("export-inventory-excel", async (event) => {
+
+    try {
+
+        await waitForDatabase();
+
+        const rows = await new Promise((resolve, reject) => {
+
+            db.all(
+                `
+                SELECT
+                name AS Name,
+                category AS Category,
+                buy_price AS BuyPrice,
+                sell_price AS SellPrice,
+                stock AS Stock
+                FROM products
+                ORDER BY name ASC
+                `,
+                [],
+                (err, data) => {
+
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve(data || []);
+                    }
+
+                }
+            );
+
+        });
+
+        const workbook = XLSX.utils.book_new();
+        const sheet = XLSX.utils.json_to_sheet(rows);
+
+        XLSX.utils.book_append_sheet(
+            workbook,
+            sheet,
+            "Inventory"
+        );
+
+        const saveResult =
+            await dialog.showSaveDialog(mainWindow, {
+                title: "Save inventory report",
+                defaultPath: path.join(
+                    app.getPath("documents"),
+                    "inventory_report.xlsx"
+                ),
+                filters: [
+                    { name: "Excel", extensions: ["xlsx"] }
+                ]
+            });
+
+        if (saveResult.canceled || !saveResult.filePath) {
+            return { success: false, canceled: true };
+        }
+
+        XLSX.writeFile(workbook, saveResult.filePath);
+
+        return {
+            success: true,
+            path: saveResult.filePath
+        };
+
+    } catch (err) {
+
+        return {
+            success: false,
+            error: err.message
+        };
+
+    }
+
+});
+
+
 function fetchBillDetails(billId) {
 
     return new Promise((resolve, reject) => {
@@ -1893,6 +2011,67 @@ ipcMain.handle("export-bill-pdf", async (event, billId) => {
     }
 
 });
+
+ipcMain.handle("preview-bill", async (event, billId) => {
+
+    try {
+
+        await waitForDatabase();
+
+        const data = await fetchBillDetails(billId);
+        const html = buildBillPrintHtml(data);
+
+        // Inject the floating print preview navigation bar
+        const htmlWithPrintBtn = html.replace("</body>", `
+            <div class="no-print" style="position: fixed; bottom: 24px; right: 24px; display: flex; gap: 12px; z-index: 99999; font-family: Segoe UI, sans-serif;">
+                <button onclick="window.print()" style="padding: 10px 20px; background: #4f46e5; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4); font-size: 13px; transition: all 0.2s;">Print Bill</button>
+                <button onclick="window.close()" style="padding: 10px 20px; background: #64748b; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 14px rgba(100, 116, 139, 0.2); font-size: 13px; transition: all 0.2s;">Close</button>
+            </div>
+            <style>
+                @media print {
+                    .no-print { display: none !important; }
+                }
+                /* Subtle hover effects */
+                .no-print button:hover {
+                    filter: brightness(1.08);
+                    transform: translateY(-1px);
+                }
+                .no-print button:active {
+                    transform: translateY(0);
+                }
+            </style>
+            </body>
+        `);
+
+        const previewWin = new BrowserWindow({
+            width: 720,
+            height: 850,
+            title: `Print Preview - Bill ${data.billId || "Details"}`,
+            parent: mainWindow || undefined,
+            modal: false,
+            autoHideMenuBar: true,
+            webPreferences: {
+                contextIsolation: true
+            }
+        });
+
+        await previewWin.loadURL(
+            `data:text/html;charset=utf-8,${encodeURIComponent(htmlWithPrintBtn)}`
+        );
+
+        return { success: true };
+
+    } catch (err) {
+
+        return {
+            success: false,
+            error: err.message
+        };
+
+    }
+
+});
+
 
 ipcMain.handle("open-file", async (event, filePath) => {
 

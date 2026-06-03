@@ -327,20 +327,24 @@ function shopInitials(name) {
 
 }
 
-const dashboardDateEl =
-    document.getElementById("dashboardDate");
-
-if (dashboardDateEl) {
-
-    dashboardDateEl.textContent =
-        new Date().toLocaleDateString("en-IN", {
+function updateDashboardClock() {
+    const el = document.getElementById("dashboardDate");
+    if (el) {
+        el.textContent = new Date().toLocaleString("en-IN", {
             weekday: "long",
             year: "numeric",
             month: "long",
-            day: "numeric"
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: true
         });
-
+    }
 }
+updateDashboardClock();
+setInterval(updateDashboardClock, 1000);
+
 
 const profileBtn = document.getElementById("profileBtn");
 const profileModal = document.getElementById("profileModal");
@@ -423,6 +427,16 @@ const priceHistoryReportBtn =
     const salesHistoryModal =
     document.getElementById(
         "salesHistoryModal"
+    );
+
+const billHistoryModal =
+    document.getElementById(
+        "billHistoryModal"
+    );
+
+const expenseModal =
+    document.getElementById(
+        "expenseModal"
     );
 
 const salesHistoryBody =
@@ -554,6 +568,11 @@ function showPosBillActive() {
         printBillBtn.hidden = true;
     }
 
+    const previewBillBtn = document.getElementById("previewBillBtn");
+    if (previewBillBtn) {
+        previewBillBtn.hidden = true;
+    }
+
     if (shareBillPdfBtn) {
         shareBillPdfBtn.hidden = true;
     }
@@ -578,6 +597,11 @@ function showPosBillDone(result, cartSnapshot, checkout) {
 
     if (posBillDone) {
         posBillDone.hidden = false;
+    }
+
+    const previewBillBtn = document.getElementById("previewBillBtn");
+    if (previewBillBtn) {
+        previewBillBtn.hidden = false;
     }
 
     if (printBillBtn) {
@@ -649,6 +673,19 @@ function resetSellBillForm(clearCart, keepDoneView) {
     document.getElementById("customerMobile").value = "";
     document.getElementById("paymentMode").value = "Cash";
 
+    const payModeButtons = document.querySelectorAll(".pay-mode-btn");
+    payModeButtons.forEach(btn => {
+        if (btn.getAttribute("data-mode") === "Cash") {
+            btn.classList.add("pay-mode-btn--active");
+            btn.style.background = "var(--accent)";
+            btn.style.color = "white";
+        } else {
+            btn.classList.remove("pay-mode-btn--active");
+            btn.style.background = "transparent";
+            btn.style.color = "var(--text-secondary)";
+        }
+    });
+
     if (!keepDoneView) {
         showPosBillActive();
     }
@@ -663,12 +700,23 @@ async function refreshSellProductsCache() {
     const currentId =
         sellProductSelect.value;
 
-    sellProductsCache =
-        await window.electronAPI.getProducts();
+    if (!sellProductsCache || !sellProductsCache.length) {
+        sellProductsCache =
+            await window.electronAPI.getProducts();
+    }
+
+    const searchVal = document.getElementById("posProductSearch")
+        ? document.getElementById("posProductSearch").value.toLowerCase().trim()
+        : "";
 
     sellProductSelect.innerHTML = "";
 
     sellProductsCache.forEach((product) => {
+
+        const matches = !searchVal ||
+                       product.name.toLowerCase().includes(searchVal) ||
+                       (product.category && product.category.toLowerCase().includes(searchVal));
+        if (!matches) return;
 
         const inCart =
             cartQtyForProduct(product.id);
@@ -689,7 +737,14 @@ async function refreshSellProductsCache() {
     });
 
     if (currentId) {
-        sellProductSelect.value = currentId;
+        const options = Array.from(sellProductSelect.options);
+        if (options.some(opt => opt.value == currentId)) {
+            sellProductSelect.value = currentId;
+        } else if (options.length > 0) {
+            sellProductSelect.selectedIndex = 0;
+        }
+    } else if (sellProductSelect.options.length > 0) {
+        sellProductSelect.selectedIndex = 0;
     }
 
     updateSellProductFields();
@@ -711,6 +766,11 @@ async function openSellBillModal() {
         );
         return;
 
+    }
+
+    const posSearchEl = document.getElementById("posProductSearch");
+    if (posSearchEl) {
+        posSearchEl.value = "";
     }
 
     await refreshSellProductsCache();
@@ -856,7 +916,14 @@ async function addItemToBill() {
         "success"
     );
 
-    restorePosFocus(false);
+    const posSearchEl = document.getElementById("posProductSearch");
+    if (posSearchEl) {
+        posSearchEl.value = "";
+        posSearchEl.focus();
+        await refreshSellProductsCache();
+    } else {
+        restorePosFocus(false);
+    }
 
 }
 
@@ -1162,6 +1229,47 @@ if (closeBillDoneBtn) {
     closeBillDoneBtn.addEventListener("click", closeSellModalFn);
 
 }
+
+const previewBillBtn = document.getElementById("previewBillBtn");
+if (previewBillBtn) {
+    previewBillBtn.addEventListener("click", async () => {
+        if (!lastCompletedBillId || typeof window.previewBillById !== "function") {
+            showToast("No bill to preview.", "warn");
+            return;
+        }
+        await window.previewBillById(lastCompletedBillId);
+    });
+}
+
+const previewBillDoneBtn = document.getElementById("previewBillDoneBtn");
+if (previewBillDoneBtn) {
+    previewBillDoneBtn.addEventListener("click", async () => {
+        if (!lastCompletedBillId || typeof window.previewBillById !== "function") {
+            showToast("No bill to preview.", "warn");
+            return;
+        }
+        await window.previewBillById(lastCompletedBillId);
+    });
+}
+
+const payModeButtons = document.querySelectorAll(".pay-mode-btn");
+payModeButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+        payModeButtons.forEach(b => {
+            b.classList.remove("pay-mode-btn--active");
+            b.style.background = "transparent";
+            b.style.color = "var(--text-secondary)";
+        });
+        btn.classList.add("pay-mode-btn--active");
+        btn.style.background = "var(--accent)";
+        btn.style.color = "white";
+        
+        const hiddenInput = document.getElementById("paymentMode");
+        if (hiddenInput) {
+            hiddenInput.value = btn.getAttribute("data-mode");
+        }
+    });
+});
 
 // --------------------
 // ADD PRODUCT
@@ -1952,6 +2060,8 @@ if (salesHistoryReportBtn) {
 
                         billActions = `
                             <button type="button" class="btn btn--ghost btn--sm"
+                                onclick="previewBillById('${sale.bill_id}')">Preview</button>
+                            <button type="button" class="btn btn--ghost btn--sm"
                                 onclick="printBillById('${sale.bill_id}')">Print</button>
                             <button type="button" class="btn btn--ghost btn--sm"
                                 onclick="exportBillPdfById('${sale.bill_id}')">PDF</button>
@@ -2228,25 +2338,43 @@ document.addEventListener("click", (e) => {
 
 saveBtn.addEventListener("click", async () => {
 
+    const name = document.getElementById("name").value.trim();
+    const category = document.getElementById("category").value.trim();
+    const buyPrice = parseNum(document.getElementById("buyPrice").value);
+    const sellPrice = parseNum(document.getElementById("sellPrice").value);
+    const stock = parseNum(document.getElementById("stock").value);
+
+    if (!name) {
+        showToast("Product name is required.", "warn");
+        document.getElementById("name").focus();
+        return;
+    }
+
+    if (Number.isNaN(buyPrice) || buyPrice < 0) {
+        showToast("Enter a valid buy price.", "warn");
+        document.getElementById("buyPrice").focus();
+        return;
+    }
+
+    if (Number.isNaN(sellPrice) || sellPrice < 0) {
+        showToast("Enter a valid sell price.", "warn");
+        document.getElementById("sellPrice").focus();
+        return;
+    }
+
+    if (Number.isNaN(stock) || stock < 0 || !Number.isInteger(stock)) {
+        showToast("Enter a valid stock quantity (integer).", "warn");
+        document.getElementById("stock").focus();
+        return;
+    }
+
     const product = {
-
-        name:
-            document.getElementById("name").value,
-
-        category:
-            document.getElementById("category").value,
-
-        buyPrice:
-            document.getElementById("buyPrice").value,
-
-        sellPrice:
-            document.getElementById("sellPrice").value,
-
-        stock:
-            document.getElementById("stock").value
-
+        name,
+        category,
+        buyPrice,
+        sellPrice,
+        stock
     };
-
 
     try {
 
@@ -2254,6 +2382,9 @@ saveBtn.addEventListener("click", async () => {
             await window.electronAPI.saveProduct(product);
 
         if (result.success) {
+
+            // Clear cache to reflect new item in POS list
+            sellProductsCache = [];
 
             await loadProducts();
 
@@ -2264,12 +2395,14 @@ saveBtn.addEventListener("click", async () => {
             document.getElementById("stock").value = "";
 
             document.getElementById("name").focus();
+            showToast("Product saved successfully.", "success");
 
         }
 
     } catch (err) {
 
         console.error(err);
+        showToast("Failed to save product: " + (err.message || err), "error");
 
     }
 
@@ -2413,23 +2546,36 @@ saveEditBtn.addEventListener(
     "click",
     async () => {
 
+        const id = document.getElementById("editId").value;
+        const name = document.getElementById("editName").value.trim();
+        const category = document.getElementById("editCategory").value.trim();
+        const buyPrice = parseNum(document.getElementById("editBuyPrice").value);
+        const sellPrice = parseNum(document.getElementById("editSellPrice").value);
+
+        if (!name) {
+            showToast("Product name is required.", "warn");
+            document.getElementById("editName").focus();
+            return;
+        }
+
+        if (Number.isNaN(buyPrice) || buyPrice < 0) {
+            showToast("Enter a valid buy price.", "warn");
+            document.getElementById("editBuyPrice").focus();
+            return;
+        }
+
+        if (Number.isNaN(sellPrice) || sellPrice < 0) {
+            showToast("Enter a valid sell price.", "warn");
+            document.getElementById("editSellPrice").focus();
+            return;
+        }
+
         const product = {
-
-            id:
-                document.getElementById("editId").value,
-
-            name:
-                document.getElementById("editName").value,
-
-            category:
-                document.getElementById("editCategory").value,
-
-            buyPrice:
-                document.getElementById("editBuyPrice").value,
-
-            sellPrice:
-                document.getElementById("editSellPrice").value
-
+            id,
+            name,
+            category,
+            buyPrice,
+            sellPrice
         };
 
 
@@ -2442,13 +2588,18 @@ saveEditBtn.addEventListener(
 
             console.log(result);
 
+            // Clear cache to reflect edited item in POS list
+            sellProductsCache = [];
+
             editModal.style.display = "none";
 
             await loadProducts();
+            showToast("Changes saved successfully.", "success");
 
         } catch (err) {
 
             console.error(err);
+            showToast("Failed to save changes: " + (err.message || err), "error");
 
         }
 
@@ -2472,34 +2623,72 @@ async function loadProducts() {
         return;
     }
 
+    // Extract unique categories and populate filter dropdown
+    const categories = new Set();
+    products.forEach(p => {
+        if (p.category && p.category.trim()) {
+            categories.add(p.category.trim());
+        }
+    });
+
+    const categorySelect = document.getElementById("filterCategory");
+    if (categorySelect) {
+        const prevSelected = categorySelect.value;
+        categorySelect.innerHTML = '<option value="">All Categories</option>';
+        Array.from(categories).sort().forEach(cat => {
+            categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+        });
+        if (Array.from(categories).includes(prevSelected)) {
+            categorySelect.value = prevSelected;
+        }
+    }
+
     table.innerHTML = "";
 
-   products.forEach(product => {
+    let lowStockCount = 0;
 
-    const lowStock =
-        Number(product.stock) <= 10;
+    products.forEach(product => {
 
-    table.innerHTML += `
-        <tr class="${lowStock ? "row--low-stock" : ""}">
-            <td><strong>${product.name}</strong></td>
-            <td>${product.stock}</td>
-            <td>
-                ${
-                    lowStock
-                    ? '<span class="badge badge--low">⚠ Low Stock</span>'
-                    : '<span class="badge badge--ok">In Stock</span>'
-                }
-            </td>
-            <td>₹${product.buy_price}</td>
-            <td>₹${product.sell_price}</td>
-            <td class="td-actions">
-                <button type="button" class="btn btn--sm btn--edit" onclick="editProduct(${product.id})">Edit</button>
-                <button type="button" class="btn btn--sm btn--danger" onclick="deleteProduct(${product.id})">Delete</button>
-            </td>
-        </tr>
-    `;
+        const lowStock =
+            Number(product.stock) <= 10;
 
-});
+        if (lowStock) {
+            lowStockCount++;
+        }
+
+        table.innerHTML += `
+            <tr class="${lowStock ? "row--low-stock" : ""}">
+                <td><strong>${product.name}</strong></td>
+                <td><span style="opacity: 0.85; font-weight: 600;">${product.category || "—"}</span></td>
+                <td>${product.stock}</td>
+                <td>
+                    ${
+                        lowStock
+                        ? '<span class="badge badge--low">⚠ Low Stock</span>'
+                        : '<span class="badge badge--ok">In Stock</span>'
+                    }
+                </td>
+                <td>₹${product.buy_price}</td>
+                <td>₹${product.sell_price}</td>
+                <td class="td-actions">
+                    <button type="button" class="btn btn--sm btn--edit" onclick="editProduct(${product.id})">Edit</button>
+                    <button type="button" class="btn btn--sm btn--danger" onclick="deleteProduct(${product.id})">Delete</button>
+                </td>
+            </tr>
+        `;
+
+    });
+
+    // Update sidebar badge
+    const badgeEl = document.getElementById("lowStockBadge");
+    if (badgeEl) {
+        if (lowStockCount > 0) {
+            badgeEl.textContent = lowStockCount;
+            badgeEl.hidden = false;
+        } else {
+            badgeEl.hidden = true;
+        }
+    }
 
     document.getElementById("totalProducts").innerText =
         products.length;
@@ -2512,6 +2701,9 @@ async function loadProducts() {
 
     document.getElementById("totalStock").innerText =
         totalStock;
+
+    // Apply filtering immediately to maintain view state
+    filterProducts();
 
 }
 
@@ -2612,20 +2804,7 @@ function loadSavedTheme() {
 
         }
 
-        const dateEl =
-            document.getElementById("dashboardDate");
-
-        if (dateEl) {
-
-            dateEl.textContent =
-                new Date().toLocaleDateString("en-IN", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric"
-                });
-
-        }
+        updateDashboardClock();
 
         await refreshAllData();
 
@@ -3097,7 +3276,13 @@ async function loadSales() {
 function filterProducts() {
 
     const search =
-        searchInput.value.toLowerCase();
+        searchInput.value.toLowerCase().trim();
+
+    const categorySelect =
+        document.getElementById("filterCategory");
+
+    const categoryFilter =
+        categorySelect ? categorySelect.value.toLowerCase().trim() : "";
 
     const rows =
         document.querySelectorAll(
@@ -3111,9 +3296,15 @@ function filterProducts() {
                 .innerText
                 .toLowerCase();
 
-        if (
-            productName.includes(search)
-        ) {
+        const categoryVal =
+            row.children[1]
+                .innerText
+                .toLowerCase();
+
+        const matchesSearch = productName.includes(search);
+        const matchesCategory = !categoryFilter || categoryVal === categoryFilter || (categoryFilter === "—" && categoryVal === "—");
+
+        if (matchesSearch && matchesCategory) {
 
             row.style.display = "";
 
@@ -3137,6 +3328,37 @@ searchInput.addEventListener(
    "keyup",
     filterProducts
 ); 
+
+const filterCategory = document.getElementById("filterCategory");
+if (filterCategory) {
+    filterCategory.addEventListener("change", filterProducts);
+}
+
+const exportInventoryBtn = document.getElementById("exportInventoryBtn");
+if (exportInventoryBtn) {
+    exportInventoryBtn.addEventListener("click", async () => {
+        exportInventoryBtn.disabled = true;
+        const originalText = exportInventoryBtn.textContent;
+        exportInventoryBtn.textContent = "Exporting...";
+        
+        try {
+            const result = await window.electronAPI.exportInventoryExcel();
+            if (result.canceled) {
+                return;
+            }
+            if (result.success) {
+                showToast("Inventory exported successfully.", "success");
+            } else {
+                showToast(result.error || "Export failed.", "error");
+            }
+        } catch (err) {
+            showToast(err.message || "An error occurred.", "error");
+        } finally {
+            exportInventoryBtn.disabled = false;
+            exportInventoryBtn.textContent = originalText;
+        }
+    });
+}
 settingsBtn.addEventListener("click", async () => {
     if (settingsPanel.style.display === "block") {
         closeAllViews();

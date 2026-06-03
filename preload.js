@@ -80,6 +80,14 @@ restoreDatabase: () =>
     exportSalesExcel: (range) =>
         ipcRenderer.invoke("export-sales-excel", range),
 
+    exportInventoryExcel: () =>
+        ipcRenderer.invoke("export-inventory-excel"),
+
+    previewBill: (billId) =>
+        ipcRenderer.invoke("preview-bill", billId),
+
+
+
     printBill: (billId) =>
         ipcRenderer.invoke("print-bill", billId),
 

@@ -88,6 +88,7 @@
         <button type="button" id="stockBtn" class="nav-btn">
             <span class="nav-btn__icon">⇅</span>
             <span class="nav-btn__label">Stock In / Out</span>
+            <span id="lowStockBadge" class="nav-badge" hidden>0</span>
             <kbd class="nav-kbd">F4</kbd>
         </button>
         <button type="button" id="expensesBtn" class="nav-btn">
@@ -194,13 +195,20 @@
     <section class="panel table-box">
         <div class="panel__head">
             <h2>Inventory</h2>
-            <input type="text" id="searchProduct" class="search-input app-input" aria-label="Search products">
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <select id="filterCategory" class="app-input app-select" style="width: 150px; height: var(--input-h); padding: 0 12px; margin: 0; font-weight: 600;">
+                    <option value="">All Categories</option>
+                </select>
+                <input type="text" id="searchProduct" class="search-input app-input" aria-label="Search products" style="margin: 0; width: 240px;">
+                <button type="button" id="exportInventoryBtn" class="btn btn--secondary" style="height: var(--input-h); padding: 0 16px; font-size: var(--text-sm); white-space: nowrap;">Export Excel</button>
+            </div>
         </div>
         <div class="table-wrap">
             <table class="data-table">
                 <thead>
                     <tr>
                         <th>Product</th>
+                        <th>Category</th>
                         <th>Stock</th>
                         <th>Status</th>
                         <th>Buy Price</th>
@@ -337,6 +345,7 @@
                 <h2 id="posModalTitle">New Bill</h2>
             </div>
             <div class="pos-modal__header-actions">
+                <button type="button" id="previewBillBtn" class="btn btn--secondary btn--sm" style="background: var(--accent-soft); color: var(--accent); border-color: rgba(79, 70, 229, 0.2);" hidden>Preview bill</button>
                 <button type="button" id="printBillBtn" class="btn btn--secondary btn--sm" hidden>Print bill</button>
                 <button type="button" id="shareBillPdfBtn" class="btn btn--ghost btn--sm" hidden>Share PDF</button>
                 <button type="button" id="closeSellModal" class="modal-close" aria-label="Close">✕</button>
@@ -362,6 +371,7 @@
                 </table>
             </div>
             <div class="pos-bill-done__actions">
+                <button type="button" id="previewBillDoneBtn" class="btn btn--secondary" style="background: var(--accent-soft); color: var(--accent); border-color: rgba(79, 70, 229, 0.2);">Preview bill</button>
                 <button type="button" id="printBillDoneBtn" class="btn btn--secondary">Print bill</button>
                 <button type="button" id="shareBillPdfDoneBtn" class="btn btn--secondary">Share PDF</button>
                 <button type="button" id="newBillAfterSaleBtn" class="btn btn--primary">New bill</button>
@@ -373,7 +383,9 @@
         <div class="pos-layout">
             <section class="pos-panel pos-panel--entry">
                 <h3 class="pos-panel__title">Add item</h3>
-                <label class="field-label">Product</label>
+                <label class="field-label" for="posProductSearch">Search Product</label>
+                <input type="text" id="posProductSearch" class="app-input" placeholder="Type to filter..." autocomplete="off" style="margin-bottom: 10px;">
+                <label class="field-label" for="sellProduct">Select Product</label>
                 <select id="sellProduct" class="app-input app-select"></select>
                 <div class="form-row">
                     <div>
@@ -436,12 +448,13 @@
                     <input type="text" class="app-input" id="customerMobile">
                 </div>
                 <div>
-                    <label class="field-label">Payment</label>
-                    <select id="paymentMode" class="app-input app-select">
-                        <option value="Cash">Cash</option>
-                        <option value="UPI">UPI</option>
-                        <option value="Credit">Credit</option>
-                    </select>
+                    <label class="field-label">Payment Mode</label>
+                    <div class="payment-modes-toggle" style="display: flex; gap: 8px; background: var(--bg-app); padding: 4px; border-radius: var(--radius-md); border: 1px solid var(--border);">
+                        <button type="button" class="pay-mode-btn pay-mode-btn--active" data-mode="Cash" style="flex: 1; height: 36px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; background: var(--accent); color: white; transition: all 0.2s;">Cash</button>
+                        <button type="button" class="pay-mode-btn" data-mode="UPI" style="flex: 1; height: 36px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; background: transparent; color: var(--text-secondary); transition: all 0.2s;">UPI</button>
+                        <button type="button" class="pay-mode-btn" data-mode="Credit" style="flex: 1; height: 36px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; background: transparent; color: var(--text-secondary); transition: all 0.2s;">Credit</button>
+                    </div>
+                    <input type="hidden" id="paymentMode" value="Cash">
                 </div>
             </div>
             <div class="modal-actions pos-checkout__actions">
