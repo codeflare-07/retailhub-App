@@ -1,6 +1,6 @@
 {
   "name": "retailhub",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "RetailHub — inventory, billing, expenses, and reports",
   "main": "main.js",
   "author": "RetailHub",
@@ -25,6 +25,7 @@
   "build": {
     "appId": "com.retailhub.app",
     "productName": "RetailHub",
+    "artifactName": "${productName}-Setup-${version}.${ext}",
     "publish": [
       {
         "provider": "github",
